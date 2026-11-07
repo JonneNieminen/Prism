@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/logo.png" width="128" height="128" alt="Prism logo" />
+<img src="docs/logo.svg" width="120" height="120" alt="Prism logo" />
 
 # Prism
 

@@ -24,6 +24,7 @@ Local AI stem separation desktop app. Tauri 2 + React/TS/Vite/Tailwind 4/Motion;
 - Look: flat macOS style (no glass, gradients or glows), one accent. Colors only via CSS variables in `src/styles/tokens.css` (dark + light); stem colors via `lib/colors.ts`.
 - Every control gets a tooltip: `data-tip="…"` (+ `data-shortcut="<command id>"`), or `tip`/`shortcut` props on `Button`/`IconButton`/`Segmented`. Never use `title=`.
 - Shortcuts: one table in `src/lib/shortcuts.ts` → `lib/commands.ts`. Mirror ⌘ shortcuts in `src-tauri/src/menu.rs` and the README table.
+- Logo ("Bend"): edit `design/logo/make.py`, run it, then `scripts/render-icons.sh` (app icons, needs Chrome). In-app mark: `src/components/Logo.tsx`.
 - README screenshots: `npm run dev`, then headless Chrome on `http://localhost:1420/?view=player&theme=dark` (mock data; see `docs/screenshots`).
 - Heavy work never on the UI thread: Rust work runs in `blocking(...)`/job threads; playback updates are imperative (rAF), not React state.
 - Changing a Rust type exposed to the UI: rerun `cargo test -p prism-core` and commit `src/bindings`.

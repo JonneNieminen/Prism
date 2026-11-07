@@ -1,7 +1,7 @@
 import { AudioLines, Boxes, Keyboard, Library, LifeBuoy, Monitor, Moon, Settings2, Sparkles, Sun } from "lucide-react";
 import type { Theme } from "../bindings";
 import { useApp, type View } from "../store/app";
-import { Logo } from "./Logo";
+import { Wordmark } from "./Logo";
 import { Segmented, cx } from "./ui";
 
 type Item = { view: View; label: string; icon: typeof Sparkles; shortcut?: string; tip: string };
@@ -52,9 +52,8 @@ export function Sidebar() {
   return (
     <nav aria-label="Main" className="relative z-10 flex w-[220px] shrink-0 flex-col border-r border-border bg-sidebar px-2.5 pt-12 pb-3">
       <div data-tauri-drag-region className="absolute inset-x-0 top-0 h-12" />
-      <div className="mb-5 flex items-center gap-2 px-2.5">
-        <Logo size={24} />
-        <span className="font-display text-[15px] font-semibold tracking-tight">Prism</span>
+      <div className="mb-5 px-2">
+        <Wordmark size={24} />
       </div>
       <ul className="flex flex-col gap-0.5">
         {row(MAIN[0])}
