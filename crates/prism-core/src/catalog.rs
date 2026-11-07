@@ -211,4 +211,27 @@ mod tests {
         assert_eq!(warnings.len(), 2);
         assert_eq!(c.models.len(), v["models"].as_array().unwrap().len() - 2);
     }
+
+    /// Network: `cargo test -p prism-core catalog_live -- --ignored`
+    #[test]
+    #[ignore]
+    fn catalog_live_install() {
+        let (c, w) = super::fetch(crate::settings::DEFAULT_CATALOG_URL).unwrap();
+        assert!(w.is_empty(), "{w:?}");
+        let entry = c.models.iter().find(|e| e.manifest.id == "uvr-mdx-voc-ft").unwrap();
+        let t = tempfile::tempdir().unwrap();
+        let store = crate::models::ModelStore::new(t.path().join("b"), t.path().join("u"));
+        let mut last = 0;
+        let m = super::install(entry, &store, &mut |p| last = p.done, &crate::util::CancelToken::new()).unwrap();
+        assert_eq!(last, entry.total_bytes());
+        assert!(m.dir.join("UVR-MDX-NET-Voc_FT.onnx").exists());
+        assert!(store.exists("uvr-mdx-voc-ft"));
+        // a cancelled download leaves nothing behind
+        let other = c.models.iter().find(|e| e.manifest.id == "uvr-mdx-inst-hq3").unwrap();
+        let cancel = crate::util::CancelToken::new();
+        cancel.cancel();
+        assert!(super::install(other, &store, &mut |_| {}, &cancel).is_err());
+        assert!(!store.exists("uvr-mdx-inst-hq3"));
+        assert_eq!(std::fs::read_dir(t.path().join("u")).unwrap().count(), 1);
+    }
 }

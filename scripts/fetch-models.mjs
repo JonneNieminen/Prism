@@ -5,10 +5,11 @@ import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync, readFileSync, readdirSync, renameSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { Readable } from "node:stream";
+import { fileURLToPath } from "node:url";
 import { pipeline } from "node:stream/promises";
 
 const BASE = process.env.PRISM_MODELS_URL ?? "https://github.com/JonneNieminen/Prism/releases/download/models-v1/";
-const root = new URL("../models/", import.meta.url).pathname;
+const root = fileURLToPath(new URL("../models/", import.meta.url));
 
 const sha256 = (p) =>
   new Promise((ok, err) => {
