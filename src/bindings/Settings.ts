@@ -2,10 +2,15 @@
 import type { Acceleration } from "./Acceleration";
 import type { ExportFormat } from "./ExportFormat";
 import type { Quality } from "./Quality";
+import type { RecentLayout } from "./RecentLayout";
 import type { Theme } from "./Theme";
 
 export type Settings = { activeModelId: string, quality: Quality, exportFormat: ExportFormat, mp3Bitrate: number, defaultSaveDir: string | null, theme: Theme, acceleration: Acceleration, catalogUrl: string, hiddenModels: Array<string>, 
 /**
  * Model ids whose license the user has acknowledged.
  */
-acceptedLicenses: Array<string>, };
+acceptedLicenses: Array<string>, 
+/**
+ * Delete library songs after this many days; 0 keeps them forever.
+ */
+libraryRetentionDays: number, recentLayout: RecentLayout, };

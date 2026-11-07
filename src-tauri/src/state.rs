@@ -84,7 +84,15 @@ impl AppState {
         }
         s.save(&self.paths.settings)?;
         *self.settings.lock().unwrap() = s.clone();
+        if old.library_retention_days != s.library_retention_days {
+            self.purge_expired();
+        }
         Ok(s)
+    }
+
+    /// Apply the "delete old songs" setting. Returns how many projects were removed.
+    pub fn purge_expired(&self) -> usize {
+        self.library.purge_older_than(self.settings().library_retention_days)
     }
 
     pub fn register(&self, id: &str) -> CancelToken {

@@ -110,6 +110,32 @@ export class StemEngine {
     else this.notify();
   }
 
+  /**
+   * Scrubbing: while the user drags, only move the playhead (no source restarts on
+   * every pointer move); playback resumes from the final position on `endScrub`.
+   */
+  private scrubResume: boolean | null = null;
+  beginScrub() {
+    if (this.scrubResume !== null) return;
+    this.scrubResume = this.playing;
+    if (this.playing) {
+      // Silent pause: no notify, so the play button doesn't flicker mid-drag.
+      this.offset = this.currentTime;
+      this.stopSources();
+      this.playing = false;
+    }
+  }
+  scrubTo(t: number) {
+    if (this.scrubResume === null) return this.seek(t);
+    this.offset = Math.max(0, Math.min(this.duration, t));
+  }
+  endScrub() {
+    const resume = this.scrubResume;
+    this.scrubResume = null;
+    if (resume && this.offset < this.duration - 0.05) void this.play();
+    else this.notify();
+  }
+
   /** Apply mute / solo / volume. Solo wins over mute, like a mixing desk. */
   setMix(mix: StemMix[]) {
     const anySolo = mix.some((m) => m.solo);

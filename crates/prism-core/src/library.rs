@@ -188,6 +188,23 @@ impl Library {
         Ok(())
     }
 
+    /// Delete every project older than `days` (0 = keep forever). Returns how many were removed.
+    pub fn purge_older_than(&self, days: u32) -> usize {
+        self.purge_before(now_millis(), days)
+    }
+
+    fn purge_before(&self, now: u64, days: u32) -> usize {
+        if days == 0 {
+            return 0;
+        }
+        let max_age = u64::from(days) * 24 * 60 * 60 * 1000;
+        self.list()
+            .into_iter()
+            .filter(|p| now.saturating_sub(p.created_at) > max_age)
+            .filter(|p| self.delete(&p.id).is_ok())
+            .count()
+    }
+
     pub fn clear(&self) -> Result<()> {
         for e in fs::read_dir(&self.root)?.flatten() {
             if e.path().is_dir() {
@@ -203,5 +220,51 @@ impl Library {
 
     pub fn root(&self) -> &Path {
         &self.root
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fake_project(lib: &Library, age_days: u64) -> String {
+        let id = uuid::Uuid::new_v4().to_string();
+        fs::create_dir_all(lib.root.join(&id)).unwrap();
+        let p = Project {
+            id: id.clone(),
+            title: "t".into(),
+            artist: None,
+            source_file_name: "t.wav".into(),
+            duration_secs: 1.0,
+            sample_rate: 44100,
+            created_at: now_millis() - age_days * 24 * 60 * 60 * 1000,
+            model: ProjectModel {
+                id: "m".into(),
+                name: "m".into(),
+                architecture: "demucs".into(),
+                version: None,
+                license: "MIT".into(),
+            },
+            quality: Quality::Balanced,
+            device: "cpu".into(),
+            processing_secs: 1.0,
+            stems: vec![],
+        };
+        fs::write(lib.root.join(&id).join("project.json"), serde_json::to_vec(&p).unwrap()).unwrap();
+        id
+    }
+
+    #[test]
+    fn purge_removes_only_expired_projects() {
+        let root = std::env::temp_dir().join(format!("prism-purge-{}", uuid::Uuid::new_v4()));
+        let lib = Library::new(root.clone());
+        let old = fake_project(&lib, 10);
+        let fresh = fake_project(&lib, 2);
+        assert_eq!(lib.purge_older_than(0), 0, "0 days keeps everything");
+        assert_eq!(lib.purge_older_than(7), 1);
+        let ids: Vec<_> = lib.list().into_iter().map(|p| p.id).collect();
+        assert_eq!(ids, vec![fresh]);
+        assert!(!lib.root.join(old).exists());
+        let _ = fs::remove_dir_all(root);
     }
 }

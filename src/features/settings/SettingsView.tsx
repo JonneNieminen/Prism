@@ -7,6 +7,8 @@ import { backend, toAppError, type AppInfo } from "../../lib/ipc";
 import { useApp } from "../../store/app";
 import { usePlayer } from "../player/playerStore";
 
+const RETENTION_CHOICES = [1, 3, 7, 14, 30, 90, 0];
+
 export function SettingsView() {
   const settings = useApp((s) => s.settings)!;
   const models = useApp((s) => s.models);
@@ -130,6 +132,23 @@ export function SettingsView() {
       </Group>
 
       <Group title="Storage">
+        <Field label="Delete old songs" hint="Separated songs are removed from the library after this long.">
+          <select
+            aria-label="Delete old songs after"
+            value={settings.libraryRetentionDays}
+            onChange={(e) => void update({ libraryRetentionDays: Number(e.target.value) })}
+            data-tip="How long separated songs stay in the library"
+            className="h-7 rounded-md border border-border bg-elevated px-2 text-[13px] outline-none"
+          >
+            {[...new Set([...RETENTION_CHOICES, settings.libraryRetentionDays])]
+              .sort((a, b) => (a === 0 ? 1 : b === 0 ? -1 : a - b))
+              .map((d) => (
+                <option key={d} value={d}>
+                  {d === 0 ? "Never" : d === 1 ? "After 1 day" : `After ${d} days`}
+                </option>
+              ))}
+          </select>
+        </Field>
         <Field label="Library" hint={info ? `${formatBytes(info.libraryBytes)} of cached stems` : "…"}>
           <Button size="sm" variant="danger" icon={<Trash2 size={13} />} onClick={() => void clear(true, false)} disabled={!info?.libraryBytes} tip="Delete all separated stems. Your songs are untouched.">
             Clear

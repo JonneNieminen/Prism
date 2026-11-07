@@ -21,6 +21,19 @@ pub enum Theme {
     Light,
 }
 
+/// How the "Recent" songs on the Separate screen are shown.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum RecentLayout {
+    #[default]
+    Tiles,
+    List,
+}
+
+/// Separated songs are deleted from the library this many days after they were made.
+pub const DEFAULT_LIBRARY_RETENTION_DAYS: u32 = 7;
+
 #[derive(Clone, Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export)]
@@ -36,6 +49,9 @@ pub struct Settings {
     pub hidden_models: Vec<String>,
     /// Model ids whose license the user has acknowledged.
     pub accepted_licenses: Vec<String>,
+    /// Delete library songs after this many days; 0 keeps them forever.
+    pub library_retention_days: u32,
+    pub recent_layout: RecentLayout,
 }
 
 impl Default for Settings {
@@ -51,6 +67,8 @@ impl Default for Settings {
             catalog_url: DEFAULT_CATALOG_URL.into(),
             hidden_models: vec![],
             accepted_licenses: vec![],
+            library_retention_days: DEFAULT_LIBRARY_RETENTION_DAYS,
+            recent_layout: RecentLayout::Tiles,
         }
     }
 }
@@ -65,7 +83,7 @@ impl Settings {
         }
         let tmp = path.with_extension("json.tmp");
         std::fs::write(&tmp, serde_json::to_vec_pretty(self)?)?;
-        std::fs::rename(tmp, path)?;
+        crate::util::replace_file(&tmp, path)?;
         Ok(())
     }
 }

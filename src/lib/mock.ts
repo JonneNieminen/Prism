@@ -54,6 +54,8 @@ let settings: Settings = {
   catalogUrl: "https://raw.githubusercontent.com/JonneNieminen/Prism/main/catalog/index.json",
   hiddenModels: [],
   acceptedLicenses: [],
+  libraryRetentionDays: 7,
+  recentLayout: "tiles",
 };
 
 const projects: Project[] = [];

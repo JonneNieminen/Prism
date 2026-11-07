@@ -1,18 +1,19 @@
-import { AudioLines, Boxes, Keyboard, Library, LifeBuoy, Monitor, Moon, Settings2, Sparkles, Sun } from "lucide-react";
+import { AudioLines, Boxes, CircleHelp, Keyboard, Library, Monitor, Moon, Settings2, Sun } from "lucide-react";
 import type { Theme } from "../bindings";
 import { useApp, type View } from "../store/app";
+import { SongTree, type IconType } from "./icons";
 import { Wordmark } from "./Logo";
 import { Segmented, cx } from "./ui";
 
-type Item = { view: View; label: string; icon: typeof Sparkles; shortcut?: string; tip: string };
+type Item = { view: View; label: string; icon: IconType; shortcut?: string; tip: string };
 
 const MAIN: Item[] = [
-  { view: "separate", label: "Separate", icon: Sparkles, shortcut: "goSeparate", tip: "Load a song and split it into stems" },
+  { view: "separate", label: "Separate", icon: SongTree, shortcut: "goSeparate", tip: "Load a song and split it into stems" },
   { view: "library", label: "Library", icon: Library, shortcut: "goLibrary", tip: "Songs you've already separated" },
   { view: "models", label: "Models", icon: Boxes, shortcut: "goModels", tip: "Installed and downloadable models" },
 ];
 const MORE: Item[] = [
-  { view: "help", label: "Help", icon: LifeBuoy, shortcut: "goHelp", tip: "How to use Prism" },
+  { view: "help", label: "Help", icon: CircleHelp, shortcut: "goHelp", tip: "How to use Prism" },
   { view: "shortcuts", label: "Shortcuts", icon: Keyboard, shortcut: "goShortcuts", tip: "Every keyboard shortcut" },
   { view: "settings", label: "Settings", icon: Settings2, shortcut: "goSettings", tip: "Preferences and storage" },
 ];

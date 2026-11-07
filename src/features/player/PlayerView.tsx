@@ -24,6 +24,7 @@ export function PlayerView({ theme }: { theme: string }) {
   const playing = usePlayer((s) => s.playing);
   const mix = usePlayer((s) => s.mix);
   const setStem = usePlayer((s) => s.setStem);
+  const setAll = usePlayer((s) => s.setAll);
   const preset = usePlayer((s) => s.preset);
   const [hovered, setHovered] = useState<string | null>(null);
   const ready = loading >= 1 && !!engine;
@@ -65,10 +66,39 @@ export function PlayerView({ theme }: { theme: string }) {
   const isAcapella = hasVocals && mix.some((m) => m.id === "vocals" && m.solo) && mix.filter((m) => m.solo).length === 1;
   const audibleCount = mix.filter((m) => (anySolo ? m.solo : !m.muted)).length;
 
-  const seekFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!engine?.duration) return;
+  // Click or drag on any waveform to scrub. The pointer is captured so the drag keeps
+  // working outside the lane, and the audio only restarts once, on release.
+  const scrubbing = useRef(false);
+  const timeAt = (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
-    engine.seek(((e.clientX - r.left) / r.width) * engine.duration);
+    return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (engine?.duration ?? 0);
+  };
+  const scrubStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!engine?.duration || e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    scrubbing.current = true;
+    engine.beginScrub();
+    engine.scrubTo(timeAt(e));
+  };
+  const scrubMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (scrubbing.current) engine?.scrubTo(timeAt(e));
+  };
+  const scrubEnd = () => {
+    if (!scrubbing.current) return;
+    scrubbing.current = false;
+    engine?.endScrub();
+  };
+
+  // Click a channel to mute / unmute it. Shift-click applies the new state to every
+  // channel between the last one clicked and this one.
+  const lastClicked = useRef<number | null>(null);
+  const toggleMute = (index: number, shiftKey: boolean) => {
+    const next = !(mix.find((x) => x.id === project.stems[index].id)?.muted ?? false);
+    const from = shiftKey && lastClicked.current !== null ? Math.min(lastClicked.current, index) : index;
+    const to = shiftKey && lastClicked.current !== null ? Math.max(lastClicked.current, index) : index;
+    const ids = new Set(project.stems.slice(from, to + 1).map((s) => s.id));
+    setAll((m) => (ids.has(m.id) ? { muted: next } : {}));
+    lastClicked.current = index;
   };
 
   return (
@@ -89,8 +119,8 @@ export function PlayerView({ theme }: { theme: string }) {
         }
         right={
           <div className="flex gap-2">
-            <Button icon={<Archive size={14} />} onClick={() => setExportTarget({ kind: "zip" })} tip="Save every stem in one .zip" shortcut="exportStems">
-              All stems
+            <Button icon={<Archive size={14} />} onClick={() => setExportTarget({ kind: "zip" })} tip="Download every stem in one .zip" shortcut="exportStems">
+              Download all stems
             </Button>
             <Button variant="primary" icon={<Share size={14} />} onClick={() => setExportTarget({ kind: "mix" })} disabled={audibleCount === 0} tip="Save what you hear as one file" shortcut="exportMix">
               Export mix
@@ -137,8 +167,11 @@ export function PlayerView({ theme }: { theme: string }) {
             step={0.01}
             defaultValue={0}
             disabled={!ready}
+            onPointerDown={() => engine?.beginScrub()}
+            onPointerUp={() => engine?.endScrub()}
+            onPointerCancel={() => engine?.endScrub()}
             onChange={(e) => {
-              engine?.seek(Number(e.target.value));
+              engine?.scrubTo(Number(e.target.value));
               e.target.style.setProperty("--fill", `${(Number(e.target.value) / (engine?.duration || 1)) * 100}%`);
             }}
           />
@@ -187,16 +220,18 @@ export function PlayerView({ theme }: { theme: string }) {
               theme={theme}
               progressRef={refFor(s.id)}
               onHover={() => setHovered(s.id)}
-              onMute={() => setStem(s.id, { muted: !m.muted })}
+              onMute={(shiftKey) => toggleMute(i, shiftKey)}
               onSolo={() => setStem(s.id, { solo: !m.solo })}
               onVolume={(v) => setStem(s.id, { volume: v })}
-              onSeek={seekFromEvent}
+              onScrubStart={scrubStart}
+              onScrubMove={scrubMove}
+              onScrubEnd={scrubEnd}
               onDownload={() => setExportTarget({ kind: "stem", stemId: s.id })}
             />
           );
         })}
         {/* shared playhead across all lanes */}
-        <div className="pointer-events-none absolute inset-y-0 right-[52px]" style={{ left: CONTROLS_W + 16 }}>
+        <div className="pointer-events-none absolute inset-y-0 right-[96px]" style={{ left: CONTROLS_W + 16 }}>
           <div ref={headRef} className="absolute inset-y-0 w-px bg-text/70" style={{ left: "0%" }} />
         </div>
       </div>
@@ -241,10 +276,12 @@ function StemRow(props: {
   theme: string;
   progressRef: React.RefObject<HTMLDivElement | null>;
   onHover: () => void;
-  onMute: () => void;
+  onMute: (shiftKey: boolean) => void;
   onSolo: () => void;
   onVolume: (v: number) => void;
-  onSeek: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onScrubStart: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onScrubMove: (e: React.PointerEvent<HTMLDivElement>) => void;
+  onScrubEnd: () => void;
   onDownload: () => void;
 }) {
   const { stem, index } = props;
@@ -262,7 +299,17 @@ function StemRow(props: {
       style={{ background: props.highlighted ? withAlpha(color, 0.06) : undefined }}
     >
       <div className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color, opacity: props.audible ? 1 : 0.25 }} />
-      <div className="flex shrink-0 items-center gap-3 pl-5" style={{ width: CONTROLS_W }}>
+      {/* The whole label area is the mute toggle; the volume slider and solo button sit above it. */}
+      <button
+        aria-pressed={props.muted}
+        aria-label={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`}
+        data-tip={`${props.muted ? "Unmute" : "Mute"} ${stem.label} · ⇧-click to change several  ${n}`}
+        onClick={(e) => props.onMute(e.shiftKey)}
+        onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+        className="absolute inset-y-0 left-[3px] cursor-pointer select-none hover:bg-elevated/50"
+        style={{ width: CONTROLS_W + 13 }}
+      />
+      <div className="pointer-events-none relative flex shrink-0 items-center gap-3 pl-5" style={{ width: CONTROLS_W }}>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cx("truncate text-[13px] font-medium", !props.audible && "text-muted")}>{stem.label}</span>
@@ -274,7 +321,7 @@ function StemRow(props: {
             <VolIcon size={13} className="shrink-0 text-muted" />
             <input
               type="range"
-              className="prism-range w-[92px]"
+              className="prism-range pointer-events-auto w-[92px]"
               aria-label={`${stem.label} volume`}
               data-tip={`${stem.label} volume · double-click to reset`}
               min={0}
@@ -288,12 +335,18 @@ function StemRow(props: {
             <span className="tabular w-8 text-[11px] text-muted">{Math.round(props.volume * 100)}%</span>
           </div>
         </div>
-        <div className="flex gap-1">
-          <ToggleChip label="M" tip={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`} keys={`${n}`} on={props.muted} color="var(--muted)" onClick={props.onMute} />
+        <div className="pointer-events-auto flex gap-1">
           <ToggleChip label="S" tip={props.solo ? `Stop soloing ${stem.label}` : `Solo ${stem.label}`} keys={`⇧${n}`} on={props.solo} color={color} onClick={props.onSolo} />
         </div>
       </div>
-      <div className="relative min-w-0 flex-1 cursor-pointer" onPointerDown={props.onSeek} data-tip="Click to jump here">
+      <div
+        className="relative min-w-0 flex-1 cursor-pointer touch-none select-none"
+        onPointerDown={props.onScrubStart}
+        onPointerMove={props.onScrubMove}
+        onPointerUp={props.onScrubEnd}
+        onPointerCancel={props.onScrubEnd}
+        data-tip="Click to jump here, drag to scrub"
+      >
         {/* Peaks come from the library, so the waveform shows instantly; audio decodes in the background. */}
         <div className={cx("transition-opacity duration-300", props.loading && "animate-pulse opacity-60")}>
           <Waveform peaks={props.peaks} color={color} height={52} progressRef={props.progressRef} dimmed={props.dimmed} theme={props.theme} />
@@ -306,6 +359,18 @@ function StemRow(props: {
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted opacity-50 transition hover:bg-elevated hover:text-text group-hover:opacity-100 focus-visible:opacity-100"
       >
         <Download size={15} />
+      </button>
+      <button
+        aria-pressed={props.muted}
+        aria-label={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`}
+        data-tip={props.muted ? `${stem.label} is muted — click to unmute` : `${stem.label} is playing — click to mute`}
+        onClick={(e) => props.onMute(e.shiftKey)}
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-elevated"
+      >
+        <span
+          className="block h-3.5 w-3.5 rounded-full border-2 transition-colors duration-150"
+          style={{ borderColor: color, background: props.muted ? "transparent" : color }}
+        />
       </button>
     </motion.div>
   );
