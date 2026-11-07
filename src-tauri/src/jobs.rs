@@ -30,9 +30,16 @@ pub enum Stage {
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum JobEvent {
     #[serde(rename_all = "camelCase")]
-    Progress { job_id: String, stage: Stage, fraction: f32, eta_secs: Option<f32>, device: Option<String>, note: Option<String> },
+    Progress {
+        job_id: String,
+        stage: Stage,
+        fraction: f32,
+        eta_secs: Option<f32>,
+        device: Option<String>,
+        note: Option<String>,
+    },
     #[serde(rename_all = "camelCase")]
-    Done { job_id: String, project: Option<Project> },
+    Done { job_id: String, project: Option<Box<Project>> },
     #[serde(rename_all = "camelCase")]
     Error { job_id: String, error: AppError },
 }
@@ -60,7 +67,7 @@ pub fn start_separation(
             let res = run_separation(&st, &path, model, quality, &cancel, &jid, &emit);
             st.unregister(&jid);
             match res {
-                Ok(p) => emit(JobEvent::Done { job_id: jid, project: Some(p) }),
+                Ok(p) => emit(JobEvent::Done { job_id: jid, project: Some(Box::new(p)) }),
                 Err(e) => emit(JobEvent::Error { job_id: jid, error: e.to_app() }),
             }
         })
@@ -154,7 +161,10 @@ pub fn start_download(app: AppHandle, st: AppState, job_id: String, entry: Catal
             &entry,
             &st.store,
             &mut |p| {
-                let _ = app.emit("model-download", DownloadEvent::Progress { job_id: job_id.clone(), done: p.done, total: p.total });
+                let _ = app.emit(
+                    "model-download",
+                    DownloadEvent::Progress { job_id: job_id.clone(), done: p.done, total: p.total },
+                );
             },
             &cancel,
         );

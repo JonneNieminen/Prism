@@ -2,7 +2,9 @@ import { create } from "zustand";
 import type { AppError, Project, Quality, Settings } from "../bindings";
 import { backend, toAppError, type JobEvent, type Models, type OpenProject, type Probe, type Stage } from "../lib/ipc";
 
-export type View = "separate" | "player" | "library" | "models" | "settings";
+export type View = "separate" | "player" | "library" | "models" | "settings" | "help" | "shortcuts";
+
+export type ExportTarget = { kind: "mix" } | { kind: "zip" } | { kind: "stem"; stemId: string };
 
 export type Job = {
   id: string;
@@ -36,7 +38,10 @@ type State = {
   project: OpenProject | null;
   projects: Project[];
   toasts: Toast[];
+  exportTarget: ExportTarget | null;
 
+  setExportTarget(t: ExportTarget | null): void;
+  pickSource(): Promise<void>;
   go(view: View): void;
   init(): Promise<void>;
   updateSettings(patch: Partial<Settings>): Promise<void>;
@@ -66,8 +71,17 @@ export const useApp = create<State>((set, get) => ({
   project: null,
   projects: [],
   toasts: [],
+  exportTarget: null,
 
   go: (view) => set({ view }),
+  setExportTarget: (exportTarget) => set({ exportTarget }),
+
+  async pickSource() {
+    const b = await backend();
+    const info = await b.appInfo();
+    const p = await b.pickAudioFile(info.supportedExtensions);
+    if (p) await get().loadSource(p);
+  },
 
   async init() {
     const b = await backend();

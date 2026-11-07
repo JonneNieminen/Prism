@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in Prism doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to report a problem. Please don't attach copyrighted audio — describe the file instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a 4-minute MP3 (320 kbps, 44.1 kHz)
+        2. Choose Demucs v4 · Best
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Prism version
+      description: Prism → About Prism
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+      placeholder: MacBook Pro M1 Pro, macOS 26.1
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model and quality
+      placeholder: Demucs v4 · 4 stems, Balanced
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error message or logs
+      render: text

@@ -44,11 +44,7 @@ pub fn sanitize_filename(s: &str) -> String {
 
 /// A plain file name: no directories, no traversal, no hidden files.
 pub fn is_plain_file_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= 128
-        && !name.starts_with('.')
-        && !name.contains(['/', '\\', '\0'])
-        && name != ".."
+    !name.is_empty() && name.len() <= 128 && !name.starts_with('.') && !name.contains(['/', '\\', '\0']) && name != ".."
 }
 
 pub fn dir_size(path: &std::path::Path) -> u64 {

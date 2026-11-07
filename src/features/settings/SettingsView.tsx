@@ -1,7 +1,7 @@
 import { FolderOpen, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ExportFormat, Quality, Theme } from "../../bindings";
-import { Button, Card, Field, Segmented, SectionTitle, Switch } from "../../components/ui";
+import { Button, Card, Field, GroupLabel, PageHeader, Segmented, Switch } from "../../components/ui";
 import { formatBytes, QUALITY_LABEL } from "../../lib/format";
 import { backend, toAppError, type AppInfo } from "../../lib/ipc";
 import { useApp } from "../../store/app";
@@ -37,7 +37,7 @@ export function SettingsView() {
 
   return (
     <div className="mx-auto max-w-[760px] py-10">
-      <SectionTitle title="Settings" />
+      <PageHeader title="Settings" subtitle="Prism remembers these between launches." />
 
       <Group title="Separation">
         <Field label="Active model" hint="Used by default for new separations.">
@@ -45,7 +45,8 @@ export function SettingsView() {
             aria-label="Active model"
             value={settings.activeModelId}
             onChange={(e) => void update({ activeModelId: e.target.value })}
-            className="h-9 rounded-xl border border-hairline bg-elevated px-3 text-sm outline-none focus-visible:border-[var(--brand-from)]"
+            data-tip="Model used for new separations"
+            className="h-7 rounded-md border border-border bg-elevated px-2 text-[13px] outline-none"
           >
             {usable.map((m) => (
               <option key={m.manifest.id} value={m.manifest.id}>
@@ -63,7 +64,7 @@ export function SettingsView() {
           />
         </Field>
         <Field label="Hardware acceleration" hint="Use the Apple Silicon GPU / Neural Engine via Core ML. Falls back to CPU automatically.">
-          <Switch label="Hardware acceleration" checked={settings.acceleration === "auto"} onChange={(v) => void update({ acceleration: v ? "auto" : "cpu" })} />
+          <Switch label="Hardware acceleration" tip="On: GPU / Neural Engine (faster). Off: CPU only." checked={settings.acceleration === "auto"} onChange={(v) => void update({ acceleration: v ? "auto" : "cpu" })} />
         </Field>
       </Group>
 
@@ -94,17 +95,18 @@ export function SettingsView() {
         <Field label="Default save folder" hint={settings.defaultSaveDir ?? "Ask every time (starts in your last folder)."}>
           <div className="flex gap-2">
             {settings.defaultSaveDir && (
-              <Button size="sm" variant="ghost" onClick={() => void update({ defaultSaveDir: null })}>
+              <Button size="sm" variant="ghost" onClick={() => void update({ defaultSaveDir: null })} tip="Ask where to save each time">
                 Clear
               </Button>
             )}
             <Button
               size="sm"
-              icon={<FolderOpen size={14} />}
+              icon={<FolderOpen size={13} />}
               onClick={async () => {
                 const p = await (await backend()).pickFolder();
                 if (p) void update({ defaultSaveDir: p });
               }}
+              tip="Pick a folder to start every save dialog in"
             >
               Choose…
             </Button>
@@ -113,15 +115,15 @@ export function SettingsView() {
       </Group>
 
       <Group title="Appearance">
-        <Field label="Theme" hint="System follows your macOS appearance.">
+        <Field label="Appearance" hint="Also in the sidebar, or press ⇧⌘L to switch light / dark.">
           <Segmented<Theme>
             label="Theme"
             value={settings.theme}
             onChange={(v) => void update({ theme: v })}
             options={[
-              { value: "system", label: "System" },
-              { value: "dark", label: "Dark" },
-              { value: "light", label: "Light" },
+              { value: "system", label: "System", tip: "Follow macOS" },
+              { value: "light", label: "Light", tip: "Always light", shortcut: "toggleTheme" },
+              { value: "dark", label: "Dark", tip: "Always dark", shortcut: "toggleTheme" },
             ]}
           />
         </Field>
@@ -129,17 +131,17 @@ export function SettingsView() {
 
       <Group title="Storage">
         <Field label="Library" hint={info ? `${formatBytes(info.libraryBytes)} of cached stems` : "…"}>
-          <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={() => void clear(true, false)} disabled={!info?.libraryBytes}>
+          <Button size="sm" variant="danger" icon={<Trash2 size={13} />} onClick={() => void clear(true, false)} disabled={!info?.libraryBytes} tip="Delete all separated stems. Your songs are untouched.">
             Clear
           </Button>
         </Field>
         <Field label="Accelerator cache" hint={info ? `${formatBytes(info.accelCacheBytes)} of compiled models — rebuilt on next use` : "…"}>
-          <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={() => void clear(false, true)} disabled={!info?.accelCacheBytes}>
+          <Button size="sm" variant="danger" icon={<Trash2 size={13} />} onClick={() => void clear(false, true)} disabled={!info?.accelCacheBytes} tip="Free space; the next separation re-optimizes the model (about a minute)">
             Clear
           </Button>
         </Field>
         <Field label="Data folder" hint={info?.dataDir}>
-          <Button size="sm" onClick={() => info && void backend().then((b) => b.reveal(info.dataDir))}>
+          <Button size="sm" onClick={() => info && void backend().then((b) => b.reveal(info.dataDir))} tip="Open the folder with your library and models">
             Show in Finder
           </Button>
         </Field>
@@ -164,9 +166,9 @@ export function SettingsView() {
               onChange={(e) => setUrl(e.target.value)}
               spellCheck={false}
               aria-invalid={!urlValid}
-              className="h-9 flex-1 rounded-xl border border-hairline bg-elevated px-3 font-mono text-[12px] outline-none focus-visible:border-[var(--brand-from)] aria-[invalid=true]:border-danger"
+              className="h-9 flex-1 rounded-md border border-border bg-elevated px-2.5 font-mono text-[12px] outline-none focus-visible:border-accent aria-[invalid=true]:border-danger"
             />
-            <Button size="sm" type="submit" disabled={!urlValid || url === settings.catalogUrl}>
+            <Button size="sm" type="submit" disabled={!urlValid || url === settings.catalogUrl} tip="Use this catalog in the Models screen">
               Save
             </Button>
           </form>
@@ -181,8 +183,8 @@ export function SettingsView() {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-6">
-      <h2 className="mb-2 px-1 text-xs font-medium tracking-wide text-muted uppercase">{title}</h2>
-      <Card className="divide-y divide-[var(--hairline)] px-5">{children}</Card>
+      <GroupLabel>{title}</GroupLabel>
+      <Card className="divide-y divide-[var(--border)] px-4">{children}</Card>
     </section>
   );
 }

@@ -3,7 +3,7 @@ import { Check, Library, Pencil, Play, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Project } from "../../bindings";
 import { Modal } from "../../components/Modal";
-import { Button, Card, Chip, IconButton, SectionTitle } from "../../components/ui";
+import { Button, Card, Chip, IconButton, PageHeader } from "../../components/ui";
 import { stemColor } from "../../lib/colors";
 import { formatBytes, formatDate, formatTime, QUALITY_LABEL } from "../../lib/format";
 import { backend, toAppError } from "../../lib/ipc";
@@ -45,7 +45,7 @@ export function LibraryView() {
 
   return (
     <div className="mx-auto max-w-[1000px] py-10">
-      <SectionTitle
+      <PageHeader
         title="Library"
         subtitle={
           projects.length
@@ -54,7 +54,7 @@ export function LibraryView() {
         }
         right={
           projects.length > 0 && (
-            <Button variant="danger" size="sm" icon={<Trash2 size={14} />} onClick={() => setConfirm("all")}>
+            <Button variant="danger" size="sm" icon={<Trash2 size={13} />} onClick={() => setConfirm("all")} tip="Delete every cached stem (your songs are untouched)">
               Clear library
             </Button>
           )
@@ -62,18 +62,18 @@ export function LibraryView() {
       />
 
       {projects.length === 0 ? (
-        <Card className="flex flex-col items-center px-8 py-16 text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-elevated">
+        <Card className="flex flex-col items-center px-8 py-14 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-elevated">
             <Library size={24} className="text-muted" />
           </div>
           <div className="font-medium">Nothing here yet</div>
           <p className="mt-1 max-w-sm text-sm text-muted">Songs you separate are kept here, so you can come back to the stems without waiting again.</p>
-          <Button className="mt-6" variant="primary" onClick={() => go("separate")}>
+          <Button className="mt-6" variant="primary" onClick={() => go("separate")} tip="Load a song and split it" shortcut="goSeparate">
             Separate a song
           </Button>
         </Card>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="card divide-y divide-[var(--border)] overflow-hidden">
           <AnimatePresence initial={false}>
             {projects.map((p, i) => (
               <motion.li
@@ -83,13 +83,14 @@ export function LibraryView() {
                 animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 10) * 0.03 } }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <div className="glass group flex items-center gap-4 rounded-2xl p-3 pr-4 transition-colors hover:border-border">
+                <div className="group flex items-center gap-3.5 px-3 py-2.5 pr-3 transition-colors hover:bg-elevated/60">
                   <button
                     onClick={() => openProject(p.id)}
                     aria-label={`Open ${p.title}`}
-                    className="brand-gradient flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white opacity-90 transition group-hover:opacity-100"
+                    data-tip="Open in the player"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent transition-colors hover:bg-accent hover:text-white"
                   >
-                    <Play size={18} fill="currentColor" className="ml-0.5" />
+                    <Play size={15} fill="currentColor" className="ml-0.5" />
                   </button>
                   <div className="min-w-0 flex-1">
                     {editing === p.id ? (
@@ -104,7 +105,7 @@ export function LibraryView() {
                         }}
                       />
                     ) : (
-                      <button className="block max-w-full truncate text-left text-[15px] font-medium hover:underline" onClick={() => openProject(p.id)}>
+                      <button className="block max-w-full truncate text-left text-[13px] font-medium hover:underline" onClick={() => openProject(p.id)}>
                         {p.title}
                       </button>
                     )}
@@ -114,10 +115,10 @@ export function LibraryView() {
                   </div>
                   <div className="hidden items-center gap-1 md:flex">
                     {p.stems.map((s) => (
-                      <span key={s.id} title={s.label} className="h-2 w-6 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
+                      <span key={s.id} data-tip={s.label} className="h-1.5 w-5 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
                     ))}
                   </div>
-                  {current?.project.id === p.id && <Chip color="var(--brand-to)">Open</Chip>}
+                  {current?.project.id === p.id && <Chip color="var(--accent)" tip="Currently open in the player">Open</Chip>}
                   <div className="flex opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
                     <IconButton label={`Rename ${p.title}`} onClick={() => setEditing(p.id)}>
                       <Pencil size={16} />
@@ -140,7 +141,7 @@ export function LibraryView() {
             : confirm && `The stems for “${confirm.title}” will be deleted. Your original song isn't touched. This can't be undone.`}
         </p>
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setConfirm(null)} data-autofocus>
+          <Button variant="ghost" onClick={() => setConfirm(null)} data-autofocus shortcut="closeDialog" tip="Keep everything">
             Cancel
           </Button>
           <Button variant="danger" onClick={() => confirm && void remove(confirm)}>
@@ -169,7 +170,7 @@ function RenameField({ initial, onDone }: { initial: string; onDone: (v: string 
         maxLength={200}
         onChange={(e) => setV(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && onDone(null)}
-        className="h-8 w-full max-w-sm rounded-lg border border-border bg-surface px-2 text-sm outline-none focus:border-[var(--brand-from)]"
+        className="h-8 w-full max-w-sm rounded-lg border border-border bg-surface px-2 text-sm outline-none focus:border-accent"
       />
       <IconButton label="Save title" type="submit">
         <Check size={16} />

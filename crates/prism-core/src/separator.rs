@@ -120,9 +120,10 @@ pub fn run(
             }
             out.push(StemOutput { id: def.id.clone(), audio: res });
         } else {
-            let i = produced.iter().position(|s| s.id == def.id).ok_or_else(|| {
-                PrismError::Inference(format!("The model didn't produce the “{}” stem.", def.id))
-            })?;
+            let i = produced
+                .iter()
+                .position(|s| s.id == def.id)
+                .ok_or_else(|| PrismError::Inference(format!("The model didn't produce the “{}” stem.", def.id)))?;
             out.push(produced.swap_remove(i));
         }
     }

@@ -112,8 +112,8 @@ pub fn fetch(url: &str) -> Result<(Catalog, Vec<String>)> {
 }
 
 pub fn parse(text: &str) -> Result<(Catalog, Vec<String>)> {
-    let mut c: Catalog = serde_json::from_str(text)
-        .map_err(|e| PrismError::Network(format!("The model catalog is malformed: {e}")))?;
+    let mut c: Catalog =
+        serde_json::from_str(text).map_err(|e| PrismError::Network(format!("The model catalog is malformed: {e}")))?;
     if c.schema_version != 1 {
         return Err(PrismError::Network("This catalog needs a newer version of Prism.".into()));
     }

@@ -6,7 +6,7 @@ export function Toasts() {
   const toasts = useApp((s) => s.toasts);
   const dismiss = useApp((s) => s.dismissToast);
   return (
-    <div className="pointer-events-none fixed right-5 bottom-5 z-[60] flex w-[360px] flex-col gap-2" aria-live="polite">
+    <div className="pointer-events-none fixed right-4 bottom-4 z-[60] flex w-[340px] flex-col gap-2" aria-live="polite">
       <AnimatePresence initial={false}>
         {toasts.map((t) => {
           const Icon = t.tone === "success" ? CheckCircle2 : t.tone === "error" ? AlertCircle : Info;
@@ -15,20 +15,20 @@ export function Toasts() {
             <motion.div
               key={t.id}
               layout
-              initial={{ opacity: 0, y: 20, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 40, transition: { duration: 0.18 } }}
-              transition={{ type: "spring", stiffness: 500, damping: 36 }}
-              className="glass pointer-events-auto flex gap-3 rounded-2xl bg-glass-strong p-4 shadow-[var(--shadow)]"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="pointer-events-auto flex gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-[var(--shadow-pop)]"
               role={t.tone === "error" ? "alert" : "status"}
             >
-              <Icon size={18} style={{ color }} className="mt-0.5 shrink-0" />
+              <Icon size={17} style={{ color }} className="mt-px shrink-0" />
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">{t.title}</div>
-                {t.body && <div className="mt-0.5 text-[13px] break-words text-muted">{t.body}</div>}
+                <div className="text-[13px] font-medium">{t.title}</div>
+                {t.body && <div className="mt-0.5 text-[12px] break-words text-muted">{t.body}</div>}
                 {t.action && (
                   <button
-                    className="brand-text mt-2 text-[13px] font-semibold"
+                    className="mt-1.5 text-[12px] font-medium text-accent hover:underline"
                     onClick={() => {
                       t.action!.run();
                       dismiss(t.id);
@@ -38,8 +38,8 @@ export function Toasts() {
                   </button>
                 )}
               </div>
-              <button aria-label="Dismiss" className="text-muted hover:text-text" onClick={() => dismiss(t.id)}>
-                <X size={16} />
+              <button aria-label="Dismiss" data-tip="Dismiss" className="h-5 w-5 rounded text-muted hover:text-text" onClick={() => dismiss(t.id)}>
+                <X size={14} />
               </button>
             </motion.div>
           );

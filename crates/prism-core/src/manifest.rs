@@ -157,7 +157,10 @@ impl ModelManifest {
     pub fn is_non_commercial(&self) -> bool {
         self.non_commercial.unwrap_or_else(|| {
             let l = self.license.to_ascii_lowercase();
-            l.contains("-nc") || l.contains("noncommercial") || l.contains("non-commercial") || l.contains("research only")
+            l.contains("-nc")
+                || l.contains("noncommercial")
+                || l.contains("non-commercial")
+                || l.contains("research only")
         })
     }
 
@@ -213,7 +216,9 @@ impl ModelManifest {
             return bad(format!("Unsupported schemaVersion {} (this Prism understands 1).", self.schema_version));
         }
         if !valid_id(&self.id, 64) {
-            return bad("“id” must be 1–64 characters of a–z, 0–9, '.', '_' or '-' and start with a letter or digit.".into());
+            return bad(
+                "“id” must be 1–64 characters of a–z, 0–9, '.', '_' or '-' and start with a letter or digit.".into()
+            );
         }
         check_len("name", &self.name, 1, 80)?;
         check_len("author", &self.author, 1, 120)?;
@@ -223,10 +228,10 @@ impl ModelManifest {
             check_len("version", v, 1, 32)?;
         }
         for (k, u) in [("licenseUrl", &self.license_url), ("homepage", &self.homepage)] {
-            if let Some(u) = u {
-                if !u.starts_with("https://") || u.len() > 500 {
-                    return bad(format!("“{k}” must be an https:// URL."));
-                }
+            if let Some(u) = u
+                && (!u.starts_with("https://") || u.len() > 500)
+            {
+                return bad(format!("“{k}” must be an https:// URL."));
             }
         }
         if !adapters::SUPPORTED.contains(&self.architecture.as_str()) {
@@ -254,10 +259,10 @@ impl ModelManifest {
                 return bad(format!("Stem id “{}” appears twice.", s.id));
             }
             check_len("stem label", &s.label, 1, 40)?;
-            if let Some(c) = &s.color {
-                if !valid_hex_color(c) {
-                    return bad(format!("Stem “{}” color must look like #RRGGBB.", s.id));
-                }
+            if let Some(c) = &s.color
+                && !valid_hex_color(c)
+            {
+                return bad(format!("Stem “{}” color must look like #RRGGBB.", s.id));
             }
         }
         if !(0.5..=120.0).contains(&self.chunk_seconds) {
@@ -266,10 +271,10 @@ impl ModelManifest {
         if !(0.0..0.95).contains(&self.overlap) {
             return bad("“overlap” must be between 0 and 0.95.".into());
         }
-        if let Some(h) = &self.hints {
-            if !(1..=5).contains(&h.speed) || !(1..=5).contains(&h.quality) {
-                return bad("“hints.speed” and “hints.quality” must be 1–5.".into());
-            }
+        if let Some(h) = &self.hints
+            && (!(1..=5).contains(&h.speed) || !(1..=5).contains(&h.quality))
+        {
+            return bad("“hints.speed” and “hints.quality” must be 1–5.".into());
         }
         if let Some(q) = &self.quality {
             for p in [&q.fast, &q.balanced, &q.best].into_iter().flatten() {
@@ -291,15 +296,15 @@ impl ModelManifest {
             if !names.insert(f.file.as_str()) {
                 return bad(format!("Weights file “{}” is listed twice.", f.file));
             }
-            if let Some(h) = &f.sha256 {
-                if h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()) {
-                    return bad(format!("The sha256 for “{}” must be 64 hex characters.", f.file));
-                }
+            if let Some(h) = &f.sha256
+                && (h.len() != 64 || !h.bytes().all(|b| b.is_ascii_hexdigit()))
+            {
+                return bad(format!("The sha256 for “{}” must be 64 hex characters.", f.file));
             }
-            if let Some(w) = &f.stem_weights {
-                if w.len() != self.stems.len() || w.iter().any(|x| !x.is_finite() || *x < 0.0) {
-                    return bad("“stemWeights” must have one non-negative number per stem.".into());
-                }
+            if let Some(w) = &f.stem_weights
+                && (w.len() != self.stems.len() || w.iter().any(|x| !x.is_finite() || *x < 0.0))
+            {
+                return bad("“stemWeights” must have one non-negative number per stem.".into());
             }
         }
         if !(self.params.is_null() || self.params.is_object()) {

@@ -55,12 +55,10 @@ pub fn check_extension(path: &Path) -> Result<()> {
     let ext = path.extension().and_then(|e| e.to_str()).map(|e| e.to_ascii_lowercase());
     match ext {
         Some(e) if SUPPORTED_EXTENSIONS.contains(&e.as_str()) => Ok(()),
-        Some(e) => Err(PrismError::UnsupportedFile(format!(
-            "“.{e}” files aren't supported. Try MP3, WAV, FLAC, M4A or OGG."
-        ))),
-        None => Err(PrismError::UnsupportedFile(
-            "This file has no extension. Try MP3, WAV, FLAC, M4A or OGG.".into(),
-        )),
+        Some(e) => {
+            Err(PrismError::UnsupportedFile(format!("“.{e}” files aren't supported. Try MP3, WAV, FLAC, M4A or OGG.")))
+        }
+        None => Err(PrismError::UnsupportedFile("This file has no extension. Try MP3, WAV, FLAC, M4A or OGG.".into())),
     }
 }
 
@@ -79,9 +77,9 @@ pub fn decode_file(path: &Path, cancel: &CancelToken) -> Result<(Audio, TrackInf
     let mut probed = symphonia::default::get_probe()
         .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
         .map_err(|e| match e {
-            SymError::Unsupported(_) => PrismError::UnsupportedFile(format!(
-                "“{file_name}” uses an audio format Prism can't decode."
-            )),
+            SymError::Unsupported(_) => {
+                PrismError::UnsupportedFile(format!("“{file_name}” uses an audio format Prism can't decode."))
+            }
             other => corrupt(format!("the file looks damaged ({other})")),
         })?;
 
@@ -96,10 +94,10 @@ pub fn decode_file(path: &Path, cancel: &CancelToken) -> Result<(Audio, TrackInf
             }
         }
     };
-    if let Some(m) = probed.metadata.get() {
-        if let Some(rev) = m.current() {
-            read_tags(rev);
-        }
+    if let Some(m) = probed.metadata.get()
+        && let Some(rev) = m.current()
+    {
+        read_tags(rev);
     }
     let mut format = probed.format;
     if let Some(rev) = format.metadata().current() {
@@ -137,7 +135,7 @@ pub fn decode_file(path: &Path, cancel: &CancelToken) -> Result<(Audio, TrackInf
             continue;
         }
         packets += 1;
-        if packets % 256 == 0 {
+        if packets.is_multiple_of(256) {
             cancel.check()?;
         }
         match decoder.decode(&packet) {

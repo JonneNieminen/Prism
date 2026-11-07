@@ -14,6 +14,8 @@ type PlayerState = {
   unload(): void;
   setStem(id: string, patch: Partial<Omit<StemMix, "id">>): void;
   setAll(fn: (m: StemMix) => Partial<Omit<StemMix, "id">>): void;
+  preset(kind: "karaoke" | "acapella" | "reset"): void;
+  seekBy(secs: number): void;
 };
 
 export const usePlayer = create<PlayerState>((set, get) => ({
@@ -53,6 +55,19 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const mix = get().mix.map((m) => (m.id === id ? { ...m, ...patch } : m));
     set({ mix });
     get().engine?.setMix(mix);
+  },
+
+  preset(kind) {
+    const hasVocals = get().mix.some((m) => m.id === "vocals");
+    if (kind === "reset") return get().setAll(() => ({ muted: false, solo: false, volume: 1 }));
+    if (!hasVocals) return;
+    if (kind === "karaoke") get().setAll((m) => ({ solo: false, muted: m.id === "vocals" }));
+    else get().setAll((m) => ({ muted: false, solo: m.id === "vocals" }));
+  },
+
+  seekBy(secs) {
+    const e = get().engine;
+    if (e) e.seek(e.currentTime + secs);
   },
 
   setAll(fn) {

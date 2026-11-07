@@ -68,10 +68,20 @@ const info = (m: ModelManifest, bundled: boolean): ModelInfo => ({
   problem: null,
 });
 
-function demoPeaks(seed: number, n = 1200) {
+/** Song-like waveform overviews for the demo: sections, transients, vocal phrases. */
+function demoPeaks(kind: number, n = 1200) {
+  let seed = 1234 + kind * 97;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const section = (x: number) => (x < 0.08 ? 0.35 : x < 0.3 ? 0.7 : x < 0.5 ? 1 : x < 0.58 ? 0.45 : x < 0.88 ? 1 : 0.3);
   return Array.from({ length: n }, (_, i) => {
-    const env = 0.35 + 0.35 * Math.sin(i / 90 + seed) ** 2;
-    return Math.min(1, env * (0.55 + 0.45 * Math.abs(Math.sin(i * (0.7 + seed * 0.13)))));
+    const x = i / n;
+    const env = section(x);
+    let v: number;
+    if (kind % 4 === 0) v = (i % 12 < 2 ? 0.95 : i % 6 < 1 ? 0.7 : 0.25) * env; // drums: hits
+    else if (kind % 4 === 1) v = (0.55 + 0.15 * Math.sin(i / 7)) * env; // bass: steady
+    else if (kind % 4 === 2) v = (0.4 + 0.25 * Math.sin(i / 23) ** 2) * env; // other: pads
+    else v = (Math.sin(i / 9) > -0.3 && x > 0.08 && !(x > 0.5 && x < 0.58) ? 0.5 + 0.35 * Math.abs(Math.sin(i / 3.3)) : 0.04) * env; // vocals: phrases
+    return Math.min(1, Math.max(0.02, v * (0.8 + 0.4 * rnd())));
   });
 }
 
@@ -148,7 +158,7 @@ export function mockBackend(): Backend {
         throw { kind: "unsupportedFile", message: "“.txt” files aren't supported. Try MP3, WAV, FLAC, M4A or OGG." };
       return {
         info: { title: name.replace(/\.[^.]+$/, ""), artist: "Demo Artist", durationSecs: 214.3, sampleRate: 44100, channels: 2, fileName: name },
-        peaks: demoPeaks(1),
+        peaks: demoPeaks(2).map((v, i) => Math.min(1, v + demoPeaks(0)[i] * 0.5)),
       };
     },
     startSeparation: async (path) => {
@@ -179,7 +189,7 @@ export function mockBackend(): Backend {
       if (!urls.has(id)) urls.set(id, Object.fromEntries(project.stems.map((s, i) => [s.id, synthStem(i)])));
       return {
         project,
-        peaks: Object.fromEntries(project.stems.map((s, i) => [s.id, demoPeaks(i * 1.7, 2000)])),
+        peaks: Object.fromEntries(project.stems.map((s, i) => [s.id, demoPeaks(i, 2000)])),
         stemUrls: urls.get(id)!,
       };
     },
@@ -249,6 +259,8 @@ export function mockBackend(): Backend {
     reveal: async () => {},
     openUrl: async (u) => void window.open(u, "_blank"),
     joinPath: (dir, name) => `${dir.replace(/\/+$/, "")}/${name}`,
+    onMenu: async () => () => {},
+    windowAction: async () => {},
   };
 }
 

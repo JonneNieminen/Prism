@@ -3,7 +3,7 @@ import { AlertTriangle, CloudOff, Download, Eye, EyeOff, FolderOpen, Package, Re
 import { useCallback, useEffect, useState } from "react";
 import type { CatalogEntry, ModelInfo } from "../../bindings";
 import { Modal } from "../../components/Modal";
-import { Button, Card, Chip, Meter, ProgressBar, SectionTitle, Spinner, StemChip } from "../../components/ui";
+import { Button, Card, Chip, Meter, ProgressBar, PageHeader, Spinner, StemChip } from "../../components/ui";
 import { formatBytes } from "../../lib/format";
 import { backend, toAppError, type DownloadEvent } from "../../lib/ipc";
 import { useApp } from "../../store/app";
@@ -79,15 +79,15 @@ export function ModelsView() {
 
   return (
     <div className="mx-auto max-w-[1000px] py-10">
-      <SectionTitle
+      <PageHeader
         title="Models"
         subtitle="Separation models run locally. Add your own or download more."
         right={
           <div className="flex gap-2">
-            <Button size="sm" icon={importing ? <Spinner /> : <FolderOpen size={14} />} onClick={() => void importModel("folder")} disabled={importing}>
+            <Button size="sm" icon={importing ? <Spinner /> : <FolderOpen size={13} />} onClick={() => void importModel("folder")} disabled={importing} tip="Add a model folder containing model.json and .onnx weights">
               Import folder
             </Button>
-            <Button size="sm" icon={<Package size={14} />} onClick={() => void importModel("zip")} disabled={importing}>
+            <Button size="sm" icon={<Package size={13} />} onClick={() => void importModel("zip")} disabled={importing} tip="Add a model packaged as a .zip">
               Import .zip
             </Button>
           </div>
@@ -117,7 +117,7 @@ export function ModelsView() {
           </motion.div>
         ))}
         {models?.listing.problems.map((p) => (
-          <div key={p.folder} className="flex items-start gap-3 rounded-2xl border border-[color-mix(in_oklab,var(--warning)_35%,transparent)] p-4 text-sm">
+          <div key={p.folder} className="card flex items-start gap-3 p-4 text-[13px]">
             <AlertTriangle size={18} className="mt-0.5 shrink-0 text-warning" />
             <div>
               <div className="font-medium">“{p.folder}” couldn't be loaded</div>
@@ -136,7 +136,7 @@ export function ModelsView() {
       {catalog === "loading" ? (
         <div className="grid gap-3">
           {[0, 1].map((i) => (
-            <div key={i} className="h-28 animate-pulse rounded-[18px] bg-surface" />
+            <div key={i} className="h-28 animate-pulse rounded-xl bg-surface" />
           ))}
         </div>
       ) : "error" in catalog ? (
@@ -146,7 +146,7 @@ export function ModelsView() {
             <div className="font-medium">The catalog isn't reachable right now</div>
             <div className="mt-0.5 text-muted">Prism works fully offline — this only affects downloading new models. {catalog.error}</div>
           </div>
-          <Button size="sm" onClick={() => void loadCatalog()}>
+          <Button size="sm" onClick={() => void loadCatalog()} tip="Try reaching the catalog again">
             Retry
           </Button>
         </Card>
@@ -162,13 +162,13 @@ export function ModelsView() {
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <span className="text-xs text-muted">{formatBytes(e.files.reduce((a, f) => a + f.bytes, 0))}</span>
                     {installed ? (
-                      <Chip color="var(--success)">Installed</Chip>
+                      <Chip color="var(--success)" tip="Already installed">Installed</Chip>
                     ) : dl ? (
-                      <Button size="sm" variant="ghost" icon={<X size={14} />} onClick={() => void backend().then((b) => b.cancelJob(dl.jobId))}>
+                      <Button size="sm" variant="ghost" icon={<X size={13} />} onClick={() => void backend().then((b) => b.cancelJob(dl.jobId))} tip="Stop the download. Nothing is installed.">
                         Cancel
                       </Button>
                     ) : (
-                      <Button size="sm" variant="primary" icon={<Download size={14} />} onClick={() => void install(e)}>
+                      <Button size="sm" variant="primary" icon={<Download size={13} />} onClick={() => void install(e)} tip="Download over HTTPS and verify its checksum before installing">
                         Download
                       </Button>
                     )}
@@ -201,7 +201,7 @@ export function ModelsView() {
       <Modal open={!!removing} onClose={() => setRemoving(null)} title="Remove this model?">
         <p className="text-sm text-muted">“{removing?.manifest.name}” and its weights ({formatBytes(removing?.sizeBytes ?? 0)}) will be deleted. Songs you already separated with it stay in your library.</p>
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setRemoving(null)} data-autofocus>
+          <Button variant="ghost" onClick={() => setRemoving(null)} data-autofocus shortcut="closeDialog" tip="Keep the model">
             Cancel
           </Button>
           <Button
@@ -232,8 +232,12 @@ function ModelSummary({ manifest: m, nonCommercial }: { manifest: CatalogEntry["
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{m.name}</span>
         {m.version && <span className="text-xs text-muted">v{m.version}</span>}
-        <Chip>{m.architecture}</Chip>
-        {nonCommercial && <Chip color="var(--warning)">Non-commercial</Chip>}
+        <Chip tip={`Runs with the ${m.architecture} adapter`}>{m.architecture}</Chip>
+        {nonCommercial && (
+          <Chip color="var(--warning)" tip="Its license doesn't allow commercial use of the output">
+            Non-commercial
+          </Chip>
+        )}
       </div>
       {m.description && <p className="mt-1 text-[13px] text-muted">{m.description}</p>}
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -279,14 +283,14 @@ function ModelCard({
         <ModelSummary manifest={m.manifest} nonCommercial={m.nonCommercial} />
         <div className="flex shrink-0 flex-col items-end gap-2">
           <div className="flex gap-1.5">
-            {m.bundled && <Chip>Default</Chip>}
-            {active && <Chip color="var(--brand-to)">Active</Chip>}
+            {m.bundled && <Chip tip="Ships with Prism and works offline">Built-in</Chip>}
+            {active && <Chip color="var(--accent)" tip="Used for new separations">Active</Chip>}
             {hidden && <Chip>Hidden</Chip>}
           </div>
           <span className="text-xs text-muted">{formatBytes(m.sizeBytes)}</span>
           <div className="flex gap-1">
             {!active && !hidden && !m.problem && (
-              <Button size="sm" onClick={onUse}>
+              <Button size="sm" onClick={onUse} tip="Make this the model for new separations">
                 Use
               </Button>
             )}
@@ -297,12 +301,12 @@ function ModelCard({
                 icon={hidden ? <Eye size={14} /> : <EyeOff size={14} />}
                 onClick={onToggleHidden}
                 disabled={!hidden && lastVisible}
-                title={!hidden && lastVisible ? "At least one model must stay available" : undefined}
+                tip={!hidden && lastVisible ? "At least one model must stay available" : hidden ? "Show this model in the model picker" : "Hide from the model picker (built-in models can't be deleted)"}
               >
                 {hidden ? "Show" : "Hide"}
               </Button>
             ) : (
-              <Button size="sm" variant="ghost" icon={<Trash2 size={14} />} onClick={onRemove} aria-label={`Remove ${m.manifest.name}`}>
+              <Button size="sm" variant="ghost" icon={<Trash2 size={13} />} onClick={onRemove} aria-label={`Remove ${m.manifest.name}`} tip="Delete this model and its weights">
                 Remove
               </Button>
             )}

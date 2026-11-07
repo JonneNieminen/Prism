@@ -118,8 +118,7 @@ fn write_flac(a: &Audio, p: &Path) -> Result<()> {
     }
     let cfg = flacenc::config::Encoder::default().into_verified().map_err(|e| err(format!("{e:?}")))?;
     let src = flacenc::source::MemSource::from_samples(&inter, nch, 24, a.sample_rate as usize);
-    let stream =
-        flacenc::encode_with_fixed_block_size(&cfg, src, cfg.block_size).map_err(|e| err(format!("{e:?}")))?;
+    let stream = flacenc::encode_with_fixed_block_size(&cfg, src, cfg.block_size).map_err(|e| err(format!("{e:?}")))?;
     let mut sink = flacenc::bitsink::ByteSink::new();
     stream.write(&mut sink).map_err(|e| err(format!("{e:?}")))?;
     let mut bytes = sink.as_slice().to_vec();

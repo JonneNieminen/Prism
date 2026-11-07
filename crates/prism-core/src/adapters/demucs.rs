@@ -103,10 +103,8 @@ impl Demucs {
                 }
             }
         }
-        let outs = run_f32(
-            sess,
-            &[("mix", &[1, 2, seg as i64], &mix), ("spec", &[1, 4, bins as i64, le as i64], &spec)],
-        )?;
+        let outs =
+            run_f32(sess, &[("mix", &[1, 2, seg as i64], &mix), ("spec", &[1, 4, bins as i64, le as i64], &spec)])?;
         let (freq, time) = (&outs[0], &outs[1]);
         let s_count = time.0[1] as usize;
         if s_count != self.manifest.stems.len() || freq.0[1] as usize != s_count {
@@ -246,7 +244,7 @@ impl Separator for Demucs {
 
         let mut est = vec![vec![vec![0f32; n]; 2]; s_count];
         let mut totals = vec![0f32; s_count];
-        let mut rng = Rng::new(0x5EED_0F_D3C0D5 ^ n as u64);
+        let mut rng = Rng::new(0x5EED_0FD3_C0D5 ^ n as u64);
         let mut models = std::mem::take(&mut self.models);
         let result = (|| -> Result<()> {
             for (sess, w) in models.iter_mut() {

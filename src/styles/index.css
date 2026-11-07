@@ -1,26 +1,26 @@
 @import "tailwindcss";
 @import "./tokens.css";
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/space-grotesk";
 
 @theme inline {
   --color-bg: var(--bg);
+  --color-sidebar: var(--sidebar);
   --color-surface: var(--surface);
   --color-elevated: var(--elevated);
+  --color-pressed: var(--pressed);
   --color-border: var(--border);
-  --color-hairline: var(--hairline);
+  --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-muted: var(--muted);
-  --color-brand-from: var(--brand-from);
-  --color-brand-to: var(--brand-to);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
   --color-danger: var(--danger);
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --color-glass: var(--glass);
-  --color-glass-strong: var(--glass-strong);
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk Variable", "Inter Variable", ui-sans-serif, sans-serif;
-  --radius-card: 18px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 @layer base {
@@ -33,68 +33,62 @@
     background: var(--bg);
     color: var(--text);
     font-family: var(--font-sans);
+    font-size: 13px;
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    font-feature-settings: "cv11", "ss01";
+    cursor: default;
   }
   input,
-  textarea,
-  [contenteditable] {
+  textarea {
     user-select: text;
     -webkit-user-select: text;
   }
+  button {
+    cursor: default;
+  }
+  :focus {
+    outline: none;
+  }
   :focus-visible {
-    outline: 2px solid var(--focus);
-    outline-offset: 2px;
+    outline: 3px solid var(--focus);
+    outline-offset: 1px;
   }
   ::selection {
-    background: color-mix(in oklab, var(--brand-from) 40%, transparent);
+    background: var(--accent-soft);
   }
 }
 
 @layer components {
-  .glass {
-    background: var(--glass);
-    backdrop-filter: blur(24px) saturate(140%);
-    -webkit-backdrop-filter: blur(24px) saturate(140%);
-    border: 1px solid var(--hairline);
-  }
-  .brand-gradient {
-    background-image: linear-gradient(120deg, var(--brand-from), var(--brand-to));
-  }
-  .brand-text {
-    background-image: linear-gradient(120deg, var(--brand-from), var(--brand-to));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
   }
   .scroll-area {
     overflow-y: auto;
     scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
+    scrollbar-color: var(--border-strong) transparent;
   }
   .tabular {
     font-variant-numeric: tabular-nums;
   }
 }
 
-/* Range inputs (volume, seek) */
+/* Range inputs (volume, seek) — flat macOS-like track and knob */
 input[type="range"].prism-range {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
-  height: 20px;
-  cursor: pointer;
+  height: 18px;
   --fill: 50%;
-  --track: var(--border);
-  --accent: var(--text);
+  --accent-color: var(--accent);
 }
 input[type="range"].prism-range::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
-  background: linear-gradient(to right, var(--accent) var(--fill), var(--track) var(--fill));
+  background: linear-gradient(to right, var(--accent-color) var(--fill), var(--pressed) var(--fill));
 }
 input[type="range"].prism-range::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -102,16 +96,11 @@ input[type="range"].prism-range::-webkit-slider-thumb {
   height: 14px;
   margin-top: -5px;
   border-radius: 999px;
-  background: var(--text);
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent);
-  transition: transform 120ms ease;
-}
-input[type="range"].prism-range:hover::-webkit-slider-thumb {
-  transform: scale(1.15);
+  background: #fff;
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.25), 0 1px 3px rgb(0 0 0 / 0.3);
 }
 input[type="range"].prism-range:disabled {
   opacity: 0.4;
-  cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {

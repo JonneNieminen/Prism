@@ -27,7 +27,14 @@ fn synthetic() -> (Audio, TrackInfo) {
         })
         .collect();
     let a = Audio { sample_rate: sr as u32, channels: vec![c.clone(), c] };
-    let info = TrackInfo { title: "Test: Song".into(), artist: None, duration_secs: 12.0, sample_rate: sr as u32, channels: 2, file_name: "t.wav".into() };
+    let info = TrackInfo {
+        title: "Test: Song".into(),
+        artist: None,
+        duration_secs: 12.0,
+        sample_rate: sr as u32,
+        channels: 2,
+        file_name: "t.wav".into(),
+    };
     (a, info)
 }
 
@@ -92,11 +99,30 @@ fn separate_store_export() {
         let (a, _) = decode_file(&f, &cancel).unwrap();
         assert!((a.duration_secs() - audio.duration_secs()).abs() < 0.2, "{fmt:?}");
     }
-    let karaoke: Vec<MixGain> =
-        p.stems.iter().map(|s| MixGain { stem_id: s.id.clone(), gain: if s.id == "vocals" { 0.0 } else { 1.0 } }).collect();
-    export_mix(&lib, &p, &karaoke, &ExportOptions { format: ExportFormat::Wav, mp3_bitrate: 320 }, &out.join("karaoke.wav")).unwrap();
+    let karaoke: Vec<MixGain> = p
+        .stems
+        .iter()
+        .map(|s| MixGain { stem_id: s.id.clone(), gain: if s.id == "vocals" { 0.0 } else { 1.0 } })
+        .collect();
+    export_mix(
+        &lib,
+        &p,
+        &karaoke,
+        &ExportOptions { format: ExportFormat::Wav, mp3_bitrate: 320 },
+        &out.join("karaoke.wav"),
+    )
+    .unwrap();
     let zip_path = out.join("stems.zip");
-    export_zip(&lib, &p, &ExportOptions { format: ExportFormat::Flac, mp3_bitrate: 320 }, &zip_path, &t.path().join("tmp"), &mut |_| {}, &cancel).unwrap();
+    export_zip(
+        &lib,
+        &p,
+        &ExportOptions { format: ExportFormat::Flac, mp3_bitrate: 320 },
+        &zip_path,
+        &t.path().join("tmp"),
+        &mut |_| {},
+        &cancel,
+    )
+    .unwrap();
     let z = zip::ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
     let mut names: Vec<_> = z.file_names().map(String::from).collect();
     names.sort();
@@ -116,9 +142,20 @@ fn cancel_stops_separation() {
     let store = ModelStore::new(models_dir(), tempfile::tempdir().unwrap().path().to_path_buf());
     let model = store.get("htdemucs").unwrap();
     let (audio, _) = synthetic();
-    let mut sep = separator::load(&model, &RuntimeOptions { acceleration: Acceleration::Cpu, cache_dir: None }).unwrap();
+    let mut sep =
+        separator::load(&model, &RuntimeOptions { acceleration: Acceleration::Cpu, cache_dir: None }).unwrap();
     let cancel = CancelToken::new();
     let c2 = cancel.clone();
-    let r = separator::run(sep.as_mut(), &audio, &SeparateOptions::default(), &mut |p| if p.fraction > 0.0 { c2.cancel() }, &cancel);
+    let r = separator::run(
+        sep.as_mut(),
+        &audio,
+        &SeparateOptions::default(),
+        &mut |p| {
+            if p.fraction > 0.0 {
+                c2.cancel()
+            }
+        },
+        &cancel,
+    );
     assert!(matches!(r, Err(prism_core::PrismError::Cancelled)));
 }

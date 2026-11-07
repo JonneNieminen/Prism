@@ -73,10 +73,10 @@ pub fn session(path: &Path, opts: &RuntimeOptions) -> Result<(Session, String)> 
             path.file_name().map(|f| f.to_string_lossy()).unwrap_or_default()
         )));
     }
-    if opts.acceleration == Acceleration::Auto {
-        if let Some(s) = accelerated(path, opts) {
-            return Ok(s);
-        }
+    if opts.acceleration == Acceleration::Auto
+        && let Some(s) = accelerated(path, opts)
+    {
+        return Ok(s);
     }
     let s = builder()?.commit_from_file(path).map_err(load_err)?;
     Ok((s, CPU_LABEL.into()))
@@ -84,9 +84,8 @@ pub fn session(path: &Path, opts: &RuntimeOptions) -> Result<(Session, String)> 
 
 #[cfg(target_os = "macos")]
 fn accelerated(path: &Path, opts: &RuntimeOptions) -> Option<(Session, String)> {
-    let mut ep = ort::ep::CoreML::default()
-        .with_model_format(ModelFormat::MLProgram)
-        .with_compute_units(ComputeUnits::All);
+    let mut ep =
+        ort::ep::CoreML::default().with_model_format(ModelFormat::MLProgram).with_compute_units(ComputeUnits::All);
     if let Some(dir) = &opts.cache_dir {
         let _ = std::fs::create_dir_all(dir);
         ep = ep.with_model_cache_dir(dir.display().to_string());
@@ -109,5 +108,7 @@ fn accelerated(_path: &Path, _opts: &RuntimeOptions) -> Option<(Session, String)
 }
 
 fn load_err(e: impl std::fmt::Display) -> PrismError {
-    PrismError::InvalidModel(format!("The model file couldn't be loaded — it may be corrupt or not a valid ONNX model ({e})."))
+    PrismError::InvalidModel(format!(
+        "The model file couldn't be loaded — it may be corrupt or not a valid ONNX model ({e})."
+    ))
 }

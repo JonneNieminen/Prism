@@ -81,6 +81,9 @@ export interface Backend {
   reveal(path: string): Promise<void>;
   openUrl(url: string): Promise<void>;
   joinPath(dir: string, name: string): string;
+  /** Native menu selections (ids match `CommandId`). */
+  onMenu(cb: (id: string) => void): Promise<() => void>;
+  windowAction(a: "minimize" | "fullscreen" | "hide" | "quit"): Promise<void>;
 }
 
 export const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -91,6 +94,7 @@ async function tauriBackend(): Promise<Backend> {
   const { getCurrentWebview } = await import("@tauri-apps/api/webview");
   const dialog = await import("@tauri-apps/plugin-dialog");
   const opener = await import("@tauri-apps/plugin-opener");
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
   const on = <T,>(name: string, cb: (p: T) => void) => listen<T>(name, (e) => cb(e.payload));
   return {
     appInfo: () => invoke("app_info"),
@@ -142,6 +146,14 @@ async function tauriBackend(): Promise<Backend> {
     reveal: (path) => opener.revealItemInDir(path),
     openUrl: (url) => opener.openUrl(url),
     joinPath: (dir, name) => `${dir.replace(/\/+$/, "")}/${name}`,
+    onMenu: (cb) => on<string>("menu", cb),
+    windowAction: async (a) => {
+      const w = getCurrentWindow();
+      if (a === "minimize") await w.minimize();
+      else if (a === "fullscreen") await w.setFullscreen(!(await w.isFullscreen()));
+      else if (a === "hide") await w.hide();
+      else await invoke("quit_app");
+    },
   };
 }
 

@@ -145,7 +145,7 @@ impl Library {
             .filter_map(|e| fs::read(e.path().join("project.json")).ok())
             .filter_map(|b| serde_json::from_slice(&b).ok())
             .collect();
-        v.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        v.sort_by_key(|p| std::cmp::Reverse(p.created_at));
         v
     }
 

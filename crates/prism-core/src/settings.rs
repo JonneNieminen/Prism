@@ -3,11 +3,11 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::Result;
 use crate::export::ExportFormat;
 use crate::manifest::Quality;
 use crate::models::DEFAULT_MODEL_ID;
 use crate::runtime::Acceleration;
-use crate::Result;
 
 pub const DEFAULT_CATALOG_URL: &str = "https://raw.githubusercontent.com/JonneNieminen/Prism/main/catalog/index.json";
 

@@ -2,6 +2,7 @@
 //! threads and reports through events, so the UI thread never blocks.
 
 mod jobs;
+mod menu;
 mod state;
 
 use std::path::PathBuf;
@@ -60,6 +61,11 @@ async fn app_info(state: State<'_, AppState>) -> Res<AppInfo> {
         })
     })
     .await
+}
+
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -308,10 +314,14 @@ pub fn run() {
         .setup(|app| {
             let st = AppState::new(app.handle())?;
             app.manage(st);
+            let m = menu::build(app.handle())?;
+            app.set_menu(m)?;
+            app.on_menu_event(|app, e| menu::forward(app, e.id().as_ref()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             app_info,
+            quit_app,
             get_settings,
             set_settings,
             probe_audio,

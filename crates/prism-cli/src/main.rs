@@ -26,7 +26,12 @@ fn main() -> Result<()> {
         Some("compare") => compare(Path::new(&args[1]), Path::new(&args[2])),
         Some("validate") => {
             let m = ModelManifest::load(Path::new(&args[1]))?;
-            println!("valid: {} ({}), stems: {:?}", m.name, m.architecture, m.stems.iter().map(|s| &s.id).collect::<Vec<_>>());
+            println!(
+                "valid: {} ({}), stems: {:?}",
+                m.name,
+                m.architecture,
+                m.stems.iter().map(|s| &s.id).collect::<Vec<_>>()
+            );
             Ok(())
         }
         _ => bail!("usage: prism separate|compare|validate …"),
@@ -105,6 +110,12 @@ fn compare(a: &Path, b: &Path) -> Result<()> {
             err += (cx[i] as f64 - cy[i] as f64).powi(2);
         }
     }
-    println!("{}: SNR {:.1} dB (frames {} vs {})", a.file_name().unwrap().to_string_lossy(), 10.0 * (sig / err.max(1e-20)).log10(), x.frames(), y.frames());
+    println!(
+        "{}: SNR {:.1} dB (frames {} vs {})",
+        a.file_name().unwrap().to_string_lossy(),
+        10.0 * (sig / err.max(1e-20)).log10(),
+        x.frames(),
+        y.frames()
+    );
     Ok(())
 }

@@ -45,7 +45,7 @@ fn one() -> f32 {
 pub fn validate(m: &ModelManifest) -> Result<()> {
     let p: Params = params(m)?;
     let bad = |s: &str| Err(PrismError::InvalidModel(format!("MDX-Net params: {s}")));
-    if p.n_fft < 512 || p.n_fft > 16384 || p.n_fft % 2 != 0 {
+    if p.n_fft < 512 || p.n_fft > 16384 || !p.n_fft.is_multiple_of(2) {
         return bad("nFft must be an even number between 512 and 16384");
     }
     if p.dim_f == 0 || p.dim_f > p.n_fft / 2 + 1 {
@@ -214,14 +214,9 @@ impl Separator for MdxNet {
             i += step;
         }
         let comp = self.p.compensate;
-        let channels: Vec<Vec<f32>> = result
-            .iter()
-            .map(|r| (0..n).map(|j| r[trim + j] / divider[trim + j].max(1e-8) * comp).collect())
-            .collect();
+        let channels: Vec<Vec<f32>> =
+            result.iter().map(|r| (0..n).map(|j| r[trim + j] / divider[trim + j].max(1e-8) * comp).collect()).collect();
         let def = self.manifest.stems.iter().find(|s| s.source != Some(StemSource::Residual)).unwrap();
-        Ok(vec![StemOutput {
-            id: def.id.clone(),
-            audio: Audio { sample_rate: self.manifest.sample_rate, channels },
-        }])
+        Ok(vec![StemOutput { id: def.id.clone(), audio: Audio { sample_rate: self.manifest.sample_rate, channels } }])
     }
 }

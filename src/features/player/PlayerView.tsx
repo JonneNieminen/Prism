@@ -1,17 +1,21 @@
 import { motion } from "motion/react";
-import { Download, Headphones, MicOff, Pause, Play, RotateCcw, Share, SkipBack, Volume1, Volume2, VolumeX } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Archive, Download, Headphones, MicOff, Pause, Play, RotateCcw, Share, SkipBack, Volume1, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProjectStem } from "../../bindings";
 import { Waveform } from "../../components/Waveform";
-import { Button, Card, Chip, Kbd, cx } from "../../components/ui";
+import { Button, Chip, Kbd, PageHeader, cx } from "../../components/ui";
 import { stemColor, withAlpha } from "../../lib/colors";
 import { formatTime, QUALITY_LABEL } from "../../lib/format";
 import { useApp } from "../../store/app";
-import { ExportDialog, type ExportTarget } from "../export/ExportDialog";
+import { ExportDialog } from "../export/ExportDialog";
 import { usePlayer } from "./playerStore";
+
+/** Width of the left controls column in each stem row (keeps the playhead aligned). */
+const CONTROLS_W = 236;
 
 export function PlayerView({ theme }: { theme: string }) {
   const open = useApp((s) => s.project)!;
+  const setExportTarget = useApp((s) => s.setExportTarget);
   const { project, peaks } = open;
   const load = usePlayer((s) => s.load);
   const engine = usePlayer((s) => s.engine);
@@ -20,9 +24,8 @@ export function PlayerView({ theme }: { theme: string }) {
   const playing = usePlayer((s) => s.playing);
   const mix = usePlayer((s) => s.mix);
   const setStem = usePlayer((s) => s.setStem);
-  const setAll = usePlayer((s) => s.setAll);
+  const preset = usePlayer((s) => s.preset);
   const [hovered, setHovered] = useState<string | null>(null);
-  const [exportTarget, setExportTarget] = useState<ExportTarget | null>(null);
   const ready = loading >= 1 && !!engine;
 
   useEffect(() => load(open), [open, load]);
@@ -56,33 +59,6 @@ export function PlayerView({ theme }: { theme: string }) {
     return () => cancelAnimationFrame(raf);
   }, [engine, ready]);
 
-  const toggleStem = useCallback(
-    (i: number, solo: boolean) => {
-      const m = usePlayer.getState().mix[i];
-      if (m) setStem(m.id, solo ? { solo: !m.solo } : { muted: !m.muted });
-    },
-    [setStem],
-  );
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement;
-      if (el.closest("input[type=text], input:not([type]), textarea, [role=dialog], select")) return;
-      // Space always plays/pauses, except on a control the user reached by keyboard
-      // (there Space must activate the control).
-      const keyboardFocusedControl = el.matches(":focus-visible") && !!el.closest("button, [role=radio], [role=switch], input");
-      if (e.code === "Space" && !keyboardFocusedControl) {
-        e.preventDefault();
-        void engine?.toggle();
-      } else if (e.key === "ArrowLeft" && !el.closest("input")) engine?.seek(engine.currentTime - 5);
-      else if (e.key === "ArrowRight" && !el.closest("input")) engine?.seek(engine.currentTime + 5);
-      else if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey) toggleStem(Number(e.key) - 1, e.shiftKey);
-      else if (/^Digit[1-9]$/.test(e.code) && e.shiftKey) toggleStem(Number(e.code.slice(5)) - 1, true);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [engine, toggleStem]);
-
   const anySolo = mix.some((m) => m.solo);
   const hasVocals = project.stems.some((s) => s.id === "vocals");
   const isKaraoke = hasVocals && mix.some((m) => m.id === "vocals" && m.muted) && !anySolo && mix.filter((m) => m.id !== "vocals").every((m) => !m.muted);
@@ -96,50 +72,66 @@ export function PlayerView({ theme }: { theme: string }) {
   };
 
   return (
-    <div className="mx-auto max-w-[1100px] py-8">
-      {/* Header */}
-      <div className="mb-6 flex items-end justify-between gap-6">
-        <div className="min-w-0">
-          <h1 className="truncate font-display text-[30px] font-semibold tracking-tight">{project.title}</h1>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-muted">
+    <div className="mx-auto max-w-[1080px] py-8">
+      <PageHeader
+        title={project.title}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-1.5">
             {project.artist && <span>{project.artist} ·</span>}
             <span className="tabular">{formatTime(project.durationSecs)}</span>
             <span>·</span>
-            <Chip>{project.model.name}</Chip>
-            <Chip>{QUALITY_LABEL[project.quality]}</Chip>
-            <span className="text-xs">
+            <Chip tip="The model that made these stems">{project.model.name}</Chip>
+            <Chip tip="Quality setting used">{QUALITY_LABEL[project.quality]}</Chip>
+            <span className="text-[12px] text-faint">
               Separated in {Math.round(project.processingSecs)} s on {project.device}
             </span>
+          </span>
+        }
+        right={
+          <div className="flex gap-2">
+            <Button icon={<Archive size={14} />} onClick={() => setExportTarget({ kind: "zip" })} tip="Save every stem in one .zip" shortcut="exportStems">
+              All stems
+            </Button>
+            <Button variant="primary" icon={<Share size={14} />} onClick={() => setExportTarget({ kind: "mix" })} disabled={audibleCount === 0} tip="Save what you hear as one file" shortcut="exportMix">
+              Export mix
+            </Button>
           </div>
-        </div>
-        <Button variant="primary" icon={<Share size={16} />} onClick={() => setExportTarget({ kind: "mix" })} disabled={audibleCount === 0}>
-          Export
-        </Button>
-      </div>
+        }
+      />
 
       {/* Transport */}
-      <Card className="mb-5 flex items-center gap-5 p-4">
+      <div className="card mb-4 flex items-center gap-4 px-4 py-3">
         <motion.button
-          whileTap={{ scale: 0.92 }}
+          whileTap={{ scale: 0.94 }}
           onClick={() => void engine?.toggle()}
           disabled={!ready}
           aria-label={playing ? "Pause" : "Play"}
-          className="brand-gradient flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-white shadow-[0_10px_30px_-10px_var(--brand-to)] transition-[filter] hover:brightness-110 disabled:opacity-50"
+          data-tip={playing ? "Pause" : "Play"}
+          data-shortcut="playPause"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
         >
-          {playing ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+          {playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" className="ml-0.5" />}
         </motion.button>
-        <button aria-label="Back to start" className="text-muted hover:text-text" onClick={() => engine?.seek(0)} disabled={!ready}>
-          <SkipBack size={18} />
+        <button
+          aria-label="Go to start"
+          data-tip="Go to start"
+          data-shortcut="toStart"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-text"
+          onClick={() => engine?.seek(0)}
+          disabled={!ready}
+        >
+          <SkipBack size={15} />
         </button>
         <div className="flex flex-1 items-center gap-3">
-          <span ref={timeRef} className="tabular w-11 text-right text-sm">
+          <span ref={timeRef} className="tabular w-10 text-right text-[12px]">
             0:00
           </span>
           <input
             ref={seekRef}
             type="range"
             className="prism-range flex-1"
-            aria-label="Seek"
+            aria-label="Playback position"
+            data-tip="Drag to move through the song (← → skip 5 s)"
             min={0}
             max={engine?.duration || project.durationSecs}
             step={0.01}
@@ -149,52 +141,40 @@ export function PlayerView({ theme }: { theme: string }) {
               engine?.seek(Number(e.target.value));
               e.target.style.setProperty("--fill", `${(Number(e.target.value) / (engine?.duration || 1)) * 100}%`);
             }}
-            style={{ ["--accent" as string]: "var(--text)" }}
           />
-          <span className="tabular w-11 text-sm text-muted">{formatTime(engine?.duration || project.durationSecs)}</span>
+          <span className="tabular w-10 text-[12px] text-muted">{formatTime(engine?.duration || project.durationSecs)}</span>
         </div>
         {hasVocals && (
-          <div className="flex items-center gap-1.5 border-l border-hairline pl-5">
-            <Button
-              size="sm"
-              variant={isKaraoke ? "secondary" : "ghost"}
-              icon={<MicOff size={14} />}
-              aria-pressed={isKaraoke}
-              onClick={() => setAll((m) => ({ solo: false, muted: m.id === "vocals" }))}
-            >
+          <div className="flex items-center gap-1 border-l border-border pl-4">
+            <Button size="sm" variant={isKaraoke ? "secondary" : "ghost"} icon={<MicOff size={13} />} aria-pressed={isKaraoke} onClick={() => preset("karaoke")} tip="Remove the vocals" shortcut="karaoke">
               Karaoke
             </Button>
-            <Button
-              size="sm"
-              variant={isAcapella ? "secondary" : "ghost"}
-              icon={<Headphones size={14} />}
-              aria-pressed={isAcapella}
-              onClick={() => setAll((m) => ({ muted: false, solo: m.id === "vocals" }))}
-            >
+            <Button size="sm" variant={isAcapella ? "secondary" : "ghost"} icon={<Headphones size={13} />} aria-pressed={isAcapella} onClick={() => preset("acapella")} tip="Hear only the vocals" shortcut="acapella">
               A cappella
             </Button>
-            <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} onClick={() => setAll(() => ({ muted: false, solo: false, volume: 1 }))}>
+            <Button size="sm" variant="ghost" icon={<RotateCcw size={13} />} onClick={() => preset("reset")} tip="Unmute everything, volumes to 100%" shortcut="resetMix">
               Reset
             </Button>
           </div>
         )}
-      </Card>
+      </div>
 
       {error && (
-        <div role="alert" className="mb-4 rounded-2xl border border-[color-mix(in_oklab,var(--danger)_35%,transparent)] p-4 text-sm text-danger">
+        <div role="alert" className="mb-3 rounded-xl border border-border bg-surface p-3.5 text-[13px] text-danger">
           Couldn't load the stems for playback: {error}
         </div>
       )}
 
       {/* Stems */}
-      <div className="relative flex flex-col gap-2.5" onMouseLeave={() => setHovered(null)}>
+      <div className="card relative overflow-hidden" onMouseLeave={() => setHovered(null)}>
         {project.stems.map((s, i) => {
           const m = mix.find((x) => x.id === s.id) ?? { id: s.id, muted: false, solo: false, volume: 1 };
           const audible = anySolo ? m.solo : !m.muted;
           return (
-            <StemCard
+            <StemRow
               key={s.id}
               index={i}
+              last={i === project.stems.length - 1}
               stem={s}
               peaks={peaks[s.id] ?? []}
               muted={m.muted}
@@ -215,13 +195,13 @@ export function PlayerView({ theme }: { theme: string }) {
             />
           );
         })}
-        {/* shared playhead across all lanes (waveform column) */}
-        <div className="pointer-events-none absolute inset-y-0 right-[64px] left-[292px]">
-          <div ref={headRef} className="absolute inset-y-1 w-px bg-text/80 shadow-[0_0_8px_var(--text)]" style={{ left: "0%" }} />
+        {/* shared playhead across all lanes */}
+        <div className="pointer-events-none absolute inset-y-0 right-[52px]" style={{ left: CONTROLS_W + 16 }}>
+          <div ref={headRef} className="absolute inset-y-0 w-px bg-text/70" style={{ left: "0%" }} />
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted">
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12px] text-muted">
         <span className="flex items-center gap-1.5">
           <Kbd>Space</Kbd> play / pause
         </span>
@@ -233,17 +213,22 @@ export function PlayerView({ theme }: { theme: string }) {
           <Kbd>1</Kbd>–<Kbd>{Math.min(9, project.stems.length)}</Kbd> mute
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>⇧</Kbd>+<Kbd>1</Kbd> solo
+          <Kbd>⇧</Kbd>
+          <Kbd>1</Kbd> solo
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Kbd>K</Kbd> karaoke
         </span>
       </div>
 
-      <ExportDialog target={exportTarget} onClose={() => setExportTarget(null)} project={project} mix={mix} />
+      <ExportDialog project={project} mix={mix} />
     </div>
   );
 }
 
-function StemCard(props: {
+function StemRow(props: {
   index: number;
+  last: boolean;
   stem: ProjectStem;
   peaks: number[];
   muted: boolean;
@@ -265,82 +250,76 @@ function StemCard(props: {
   const { stem, index } = props;
   const color = useMemo(() => stemColor(stem.id, stem.color), [stem.id, stem.color]);
   const VolIcon = !props.audible || props.volume === 0 ? VolumeX : props.volume < 0.5 ? Volume1 : Volume2;
+  const n = index + 1;
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 26, delay: 0.06 * index }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: "easeOut", delay: 0.04 * index }}
       onMouseEnter={props.onHover}
       onFocus={props.onHover}
-      className={cx("glass group relative flex h-[88px] items-center gap-4 overflow-hidden rounded-[18px] pr-3 pl-0 transition-[border-color,box-shadow] duration-200")}
-      style={{
-        borderColor: props.highlighted ? withAlpha(color, 0.55) : undefined,
-        boxShadow: props.highlighted ? `0 0 0 1px ${withAlpha(color, 0.25)}, 0 10px 40px -12px ${withAlpha(color, 0.45)}` : undefined,
-      }}
+      className={cx("group relative flex h-[76px] items-center gap-4 pr-3 transition-colors duration-150", !props.last && "border-b border-border")}
+      style={{ background: props.highlighted ? withAlpha(color, 0.06) : undefined }}
     >
-      <div className="h-full w-1.5 shrink-0" style={{ background: color, opacity: props.audible ? 1 : 0.3 }} />
-      <div className="flex w-[254px] shrink-0 items-center gap-3">
+      <div className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color, opacity: props.audible ? 1 : 0.25 }} />
+      <div className="flex shrink-0 items-center gap-3 pl-5" style={{ width: CONTROLS_W }}>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="truncate text-[15px] font-medium" style={{ color: props.audible ? undefined : "var(--muted)" }}>
-              {stem.label}
+            <span className={cx("truncate text-[13px] font-medium", !props.audible && "text-muted")}>{stem.label}</span>
+            <span className="text-[11px] text-faint" data-tip={`Press ${n} to mute, ⇧${n} to solo`}>
+              {n}
             </span>
-            <span className="text-[11px] text-muted">{index + 1}</span>
           </div>
-          <div className="mt-1.5 flex items-center gap-2">
-            <VolIcon size={14} className="shrink-0 text-muted" />
+          <div className="mt-1 flex items-center gap-2">
+            <VolIcon size={13} className="shrink-0 text-muted" />
             <input
               type="range"
-              className="prism-range w-[110px]"
+              className="prism-range w-[92px]"
               aria-label={`${stem.label} volume`}
+              data-tip={`${stem.label} volume · double-click to reset`}
               min={0}
               max={1.5}
               step={0.01}
               value={props.volume}
               onChange={(e) => props.onVolume(Number(e.target.value))}
               onDoubleClick={() => props.onVolume(1)}
-              style={{ ["--fill" as string]: `${(props.volume / 1.5) * 100}%`, ["--accent" as string]: color }}
+              style={{ ["--fill" as string]: `${(props.volume / 1.5) * 100}%`, ["--accent-color" as string]: color }}
             />
             <span className="tabular w-8 text-[11px] text-muted">{Math.round(props.volume * 100)}%</span>
           </div>
         </div>
         <div className="flex gap-1">
-          <ToggleChip label="M" title={`${props.muted ? "Unmute" : "Mute"} ${stem.label}`} on={props.muted} color="var(--muted)" onClick={props.onMute} />
-          <ToggleChip label="S" title={`${props.solo ? "Unsolo" : "Solo"} ${stem.label}`} on={props.solo} color={color} onClick={props.onSolo} />
+          <ToggleChip label="M" tip={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`} keys={`${n}`} on={props.muted} color="var(--muted)" onClick={props.onMute} />
+          <ToggleChip label="S" tip={props.solo ? `Stop soloing ${stem.label}` : `Solo ${stem.label}`} keys={`⇧${n}`} on={props.solo} color={color} onClick={props.onSolo} />
         </div>
       </div>
-      <div className="relative min-w-0 flex-1 cursor-pointer" onPointerDown={props.onSeek} aria-hidden>
-        {props.loading ? (
-          <div className="h-14 animate-pulse rounded-lg" style={{ background: withAlpha(color, 0.08) }} />
-        ) : (
-          <Waveform peaks={props.peaks} color={color} height={60} progressRef={props.progressRef} dimmed={props.dimmed} theme={props.theme} />
-        )}
+      <div className="relative min-w-0 flex-1 cursor-pointer" onPointerDown={props.onSeek} data-tip="Click to jump here">
+        {/* Peaks come from the library, so the waveform shows instantly; audio decodes in the background. */}
+        <div className={cx("transition-opacity duration-300", props.loading && "animate-pulse opacity-60")}>
+          <Waveform peaks={props.peaks} color={color} height={52} progressRef={props.progressRef} dimmed={props.dimmed} theme={props.theme} />
+        </div>
       </div>
       <button
-        aria-label={`Download ${stem.label}`}
-        title={`Download ${stem.label}`}
+        aria-label={`Export ${stem.label}`}
+        data-tip={`Export ${stem.label} only`}
         onClick={props.onDownload}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted opacity-60 transition hover:bg-elevated hover:text-text group-hover:opacity-100 focus-visible:opacity-100"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted opacity-50 transition hover:bg-elevated hover:text-text group-hover:opacity-100 focus-visible:opacity-100"
       >
-        <Download size={17} />
+        <Download size={15} />
       </button>
     </motion.div>
   );
 }
 
-function ToggleChip({ label, title, on, color, onClick }: { label: string; title: string; on: boolean; color: string; onClick: () => void }) {
+function ToggleChip({ label, tip, keys, on, color, onClick }: { label: string; tip: string; keys: string; on: boolean; color: string; onClick: () => void }) {
   return (
     <button
       aria-pressed={on}
-      aria-label={title}
-      title={title}
+      aria-label={tip}
+      data-tip={`${tip}  ${keys}`}
       onClick={onClick}
-      className="h-8 w-8 rounded-lg border text-xs font-bold transition-colors"
-      style={
-        on
-          ? { background: color, borderColor: color, color: "var(--bg)" }
-          : { borderColor: "var(--hairline)", color: "var(--muted)" }
-      }
+      className="h-7 w-7 rounded-md text-[11px] font-semibold transition-colors"
+      style={on ? { background: color, color: "var(--bg)" } : { background: "var(--elevated)", color: "var(--muted)" }}
     >
       {label}
     </button>

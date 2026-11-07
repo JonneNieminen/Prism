@@ -1,0 +1,88 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    name: Checks & tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Cache model weights
+        uses: actions/cache@v6
+        with:
+          path: models/**/*.onnx
+          key: models-${{ hashFiles('models/**/model.json') }}
+
+      - run: npm ci
+      - name: Fetch bundled model (SHA-256 verified)
+        run: npm run fetch-models
+      - name: Typecheck & build UI
+        run: npm run build
+      - name: rustfmt
+        run: cargo fmt --all --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests (unit + end-to-end separation)
+        run: cargo test --workspace
+      - name: Generated TypeScript bindings are committed
+        run: git diff --exit-code src/bindings
+
+  app:
+    name: macOS app bundle
+    needs: checks
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release
+
+      - name: Cache model weights
+        uses: actions/cache@v6
+        with:
+          path: models/**/*.onnx
+          key: models-${{ hashFiles('models/**/model.json') }}
+
+      - run: npm ci
+      - run: npm run fetch-models
+      - name: Build Prism.app and .dmg (unsigned)
+        run: npx tauri build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Prism-macOS-arm64-dmg
+          path: target/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+          retention-days: 30
