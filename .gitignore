@@ -1,0 +1,10 @@
+node_modules/
+dist/
+target/
+*.onnx
+*.safetensors
+models/**/weights/
+tools/export/.venv/
+tools/export/out/
+.DS_Store
+*.log

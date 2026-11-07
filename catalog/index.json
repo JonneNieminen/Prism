@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "manifest": {
+        "schemaVersion": 1,
+        "id": "htdemucs_6s",
+        "name": "Demucs v4 \u00b7 6 stems",
+        "version": "4.0.1",
+        "architecture": "demucs",
+        "sampleRate": 44100,
+        "channels": 2,
+        "stems": [
+          {
+            "id": "drums",
+            "label": "Drums",
+            "color": "#FFB020"
+          },
+          {
+            "id": "bass",
+            "label": "Bass",
+            "color": "#7C5CFF"
+          },
+          {
+            "id": "other",
+            "label": "Other",
+            "color": "#A3E635"
+          },
+          {
+            "id": "vocals",
+            "label": "Vocals",
+            "color": "#FF5D8F"
+          },
+          {
+            "id": "guitar",
+            "label": "Guitar",
+            "color": "#2DD4BF"
+          },
+          {
+            "id": "piano",
+            "label": "Piano",
+            "color": "#5AB0FF"
+          }
+        ],
+        "chunkSeconds": 7.8,
+        "overlap": 0.25,
+        "license": "MIT",
+        "licenseUrl": "https://github.com/facebookresearch/demucs/blob/main/LICENSE",
+        "author": "Meta AI",
+        "description": "Adds guitar and piano. Piano separation is still experimental.",
+        "homepage": "https://github.com/facebookresearch/demucs",
+        "hints": {
+          "speed": 3,
+          "quality": 3
+        },
+        "quality": {
+          "fast": {
+            "shifts": 0,
+            "overlap": 0.1
+          },
+          "balanced": {
+            "shifts": 1,
+            "overlap": 0.25
+          },
+          "best": {
+            "shifts": 3,
+            "overlap": 0.25
+          }
+        },
+        "params": {
+          "segmentSamples": 343980,
+          "nfft": 4096,
+          "hop": 1024
+        },
+        "weights": "htdemucs_6s.onnx",
+        "sha256": "1447be0104139072a729e4b25dd2389b1d3eaeb448d7587b0bb1f75036afcd3b"
+      },
+      "files": [
+        {
+          "file": "htdemucs_6s.onnx",
+          "url": "https://github.com/JonneNieminen/Prism/releases/download/models-v1/htdemucs_6s.onnx",
+          "bytes": 114560304
+        }
+      ]
+    },
+    {
+      "manifest": {
+        "schemaVersion": 1,
+        "id": "htdemucs_ft",
+        "name": "Demucs v4 \u00b7 fine-tuned",
+        "version": "4.0.1",
+        "architecture": "demucs",
+        "sampleRate": 44100,
+        "channels": 2,
+        "stems": [
+          {
+            "id": "drums",
+            "label": "Drums",
+            "color": "#FFB020"
+          },
+          {
+            "id": "bass",
+            "label": "Bass",
+            "color": "#7C5CFF"
+          },
+          {
+            "id": "other",
+            "label": "Other",
+            "color": "#A3E635"
+          },
+          {
+            "id": "vocals",
+            "label": "Vocals",
+            "color": "#FF5D8F"
+          }
+        ],
+        "chunkSeconds": 7.8,
+        "overlap": 0.25,
+        "license": "MIT",
+        "licenseUrl": "https://github.com/facebookresearch/demucs/blob/main/LICENSE",
+        "author": "Meta AI",
+        "description": "Four specialised models, one per stem. Cleanest Demucs results, about 4\u00d7 slower.",
+        "homepage": "https://github.com/facebookresearch/demucs",
+        "hints": {
+          "speed": 1,
+          "quality": 5
+        },
+        "quality": {
+          "fast": {
+            "shifts": 0,
+            "overlap": 0.1
+          },
+          "balanced": {
+            "shifts": 1,
+            "overlap": 0.25
+          },
+          "best": {
+            "shifts": 3,
+            "overlap": 0.25
+          }
+        },
+        "params": {
+          "segmentSamples": 343980,
+          "nfft": 4096,
+          "hop": 1024
+        },
+        "weights": [
+          {
+            "file": "htdemucs_ft_0.onnx",
+            "sha256": "8fee2369d8c5b31a77f8768e451e1c9fafc9496b858ccba014ce213620c00ac8",
+            "stemWeights": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "file": "htdemucs_ft_1.onnx",
+            "sha256": "6141b71da5f6457ddd4a23e3ee0e3f6f34171141d1b891c4ec17b233d184ff34",
+            "stemWeights": [
+              0.0,
+              1.0,
+              0.0,
+              0.0
+            ]
+          },
+          {
+            "file": "htdemucs_ft_2.onnx",
+            "sha256": "3ea6affcfe8f532c23611bb3770ccbf1dfd6b7e01bfbac00bf93a21b71c70d05",
+            "stemWeights": [
+              0.0,
+              0.0,
+              1.0,
+              0.0
+            ]
+          },
+          {
+            "file": "htdemucs_ft_3.onnx",
+            "sha256": "f383db5c8bc02ae4adadf95567f42a0adc1d3863d67f7e822dc4a5c7aaaa5e0b",
+            "stemWeights": [
+              0.0,
+              0.0,
+              0.0,
+              1.0
+            ]
+          }
+        ]
+      },
+      "files": [
+        {
+          "file": "htdemucs_ft_0.onnx",
+          "url": "https://github.com/JonneNieminen/Prism/releases/download/models-v1/htdemucs_ft_0.onnx",
+          "bytes": 174264722
+        },
+        {
+          "file": "htdemucs_ft_1.onnx",
+          "url": "https://github.com/JonneNieminen/Prism/releases/download/models-v1/htdemucs_ft_1.onnx",
+          "bytes": 174264722
+        },
+        {
+          "file": "htdemucs_ft_2.onnx",
+          "url": "https://github.com/JonneNieminen/Prism/releases/download/models-v1/htdemucs_ft_2.onnx",
+          "bytes": 174264722
+        },
+        {
+          "file": "htdemucs_ft_3.onnx",
+          "url": "https://github.com/JonneNieminen/Prism/releases/download/models-v1/htdemucs_ft_3.onnx",
+          "bytes": 174264722
+        }
+      ]
+    },
+    {
+      "manifest": {
+        "schemaVersion": 1,
+        "id": "uvr-mdx-voc-ft",
+        "name": "MDX-Net \u00b7 Vocals FT",
+        "architecture": "mdx-net",
+        "weights": "UVR-MDX-NET-Voc_FT.onnx",
+        "sha256": "534b2070fcc7df514b13ef660dc8cbb328679c2374d04354a5c42bb14ecce111",
+        "sampleRate": 44100,
+        "channels": 2,
+        "stems": [
+          {
+            "id": "vocals",
+            "label": "Vocals",
+            "color": "#FF5D8F"
+          },
+          {
+            "id": "instrumental",
+            "label": "Instrumental",
+            "color": "#5AB0FF",
+            "source": "residual"
+          }
+        ],
+        "chunkSeconds": 5.92,
+        "overlap": 0.5,
+        "license": "MIT (Ultimate Vocal Remover)",
+        "licenseUrl": "https://github.com/Anjok07/ultimatevocalremovergui/blob/master/LICENSE",
+        "author": "UVR team (Anjok07, aufr33)",
+        "description": "Two stems: very clean vocals, and everything else as the instrumental.",
+        "homepage": "https://github.com/Anjok07/ultimatevocalremovergui",
+        "hints": {
+          "speed": 4,
+          "quality": 4
+        },
+        "quality": {
+          "fast": {
+            "shifts": 0,
+            "overlap": 0.25
+          },
+          "balanced": {
+            "shifts": 0,
+            "overlap": 0.5
+          },
+          "best": {
+            "shifts": 0,
+            "overlap": 0.75
+          }
+        },
+        "params": {
+          "nFft": 7680,
+          "hop": 1024,
+          "dimF": 3072,
+          "dimT": 256,
+          "compensate": 1.021
+        }
+      },
+      "files": [
+        {
+          "file": "UVR-MDX-NET-Voc_FT.onnx",
+          "url": "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR-MDX-NET-Voc_FT.onnx",
+          "bytes": 66762490
+        }
+      ]
+    },
+    {
+      "manifest": {
+        "schemaVersion": 1,
+        "id": "uvr-mdx-inst-hq3",
+        "name": "MDX-Net \u00b7 Instrumental HQ 3",
+        "architecture": "mdx-net",
+        "weights": "UVR-MDX-NET-Inst_HQ_3.onnx",
+        "sha256": "317554b07fe1ea5279a77f2b1520a41ea4b93432560c4ffd08792c30fddf9adc",
+        "sampleRate": 44100,
+        "channels": 2,
+        "stems": [
+          {
+            "id": "instrumental",
+            "label": "Instrumental",
+            "color": "#5AB0FF"
+          },
+          {
+            "id": "vocals",
+            "label": "Vocals",
+            "color": "#FF5D8F",
+            "source": "residual"
+          }
+        ],
+        "chunkSeconds": 5.92,
+        "overlap": 0.5,
+        "license": "MIT (Ultimate Vocal Remover)",
+        "licenseUrl": "https://github.com/Anjok07/ultimatevocalremovergui/blob/master/LICENSE",
+        "author": "UVR team (Anjok07, aufr33)",
+        "description": "Two stems tuned for a clean instrumental (karaoke) track.",
+        "homepage": "https://github.com/Anjok07/ultimatevocalremovergui",
+        "hints": {
+          "speed": 4,
+          "quality": 4
+        },
+        "quality": {
+          "fast": {
+            "shifts": 0,
+            "overlap": 0.25
+          },
+          "balanced": {
+            "shifts": 0,
+            "overlap": 0.5
+          },
+          "best": {
+            "shifts": 0,
+            "overlap": 0.75
+          }
+        },
+        "params": {
+          "nFft": 6144,
+          "hop": 1024,
+          "dimF": 3072,
+          "dimT": 256,
+          "compensate": 1.022
+        }
+      },
+      "files": [
+        {
+          "file": "UVR-MDX-NET-Inst_HQ_3.onnx",
+          "url": "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models/UVR-MDX-NET-Inst_HQ_3.onnx",
+          "bytes": 66759214
+        }
+      ]
+    }
+  ]
+}

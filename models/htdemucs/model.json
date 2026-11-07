@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "htdemucs",
+  "name": "Demucs v4 · 4 stems",
+  "version": "4.0.1",
+  "architecture": "demucs",
+  "weights": "htdemucs.onnx",
+  "sha256": "f2dc1bae4e73ecd3302c10ee56d9b6d74ccc3d87191c3606d14b3aafa26c6a30",
+  "sampleRate": 44100,
+  "channels": 2,
+  "stems": [
+    { "id": "drums", "label": "Drums", "color": "#FFB020" },
+    { "id": "bass", "label": "Bass", "color": "#7C5CFF" },
+    { "id": "other", "label": "Other", "color": "#A3E635" },
+    { "id": "vocals", "label": "Vocals", "color": "#FF5D8F" }
+  ],
+  "chunkSeconds": 7.8,
+  "overlap": 0.25,
+  "license": "MIT",
+  "licenseUrl": "https://github.com/facebookresearch/demucs/blob/main/LICENSE",
+  "author": "Meta AI",
+  "description": "Hybrid Transformer Demucs. The balanced default: vocals, drums, bass and everything else.",
+  "homepage": "https://github.com/facebookresearch/demucs",
+  "hints": { "speed": 3, "quality": 4 },
+  "quality": {
+    "fast": { "shifts": 0, "overlap": 0.1 },
+    "balanced": { "shifts": 1, "overlap": 0.25 },
+    "best": { "shifts": 3, "overlap": 0.25 }
+  },
+  "params": { "segmentSamples": 343980, "nfft": 4096, "hop": 1024 }
+}
