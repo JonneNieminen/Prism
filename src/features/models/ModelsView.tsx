@@ -129,7 +129,7 @@ export function ModelsView() {
 
       <div className="mt-10 mb-3 flex items-center justify-between">
         <h2 className="text-sm font-medium text-muted">Catalog</h2>
-        <button className="flex items-center gap-1.5 text-[13px] text-muted hover:text-text" onClick={() => void loadCatalog()}>
+        <button className="flex items-center gap-1.5 text-[13px] text-muted hover:text-text" onClick={() => void loadCatalog()} data-tip="Reload the model catalog">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
@@ -206,6 +206,7 @@ export function ModelsView() {
           </Button>
           <Button
             variant="danger"
+            tip="Delete the model and its weights"
             onClick={async () => {
               const m = removing!;
               setRemoving(null);

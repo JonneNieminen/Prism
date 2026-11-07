@@ -105,7 +105,7 @@ export function LibraryView() {
                         }}
                       />
                     ) : (
-                      <button className="block max-w-full truncate text-left text-[13px] font-medium hover:underline" onClick={() => openProject(p.id)}>
+                      <button className="block max-w-full truncate text-left text-[13px] font-medium hover:underline" onClick={() => openProject(p.id)} data-tip="Open in the player">
                         {p.title}
                       </button>
                     )}
@@ -144,7 +144,7 @@ export function LibraryView() {
           <Button variant="ghost" onClick={() => setConfirm(null)} data-autofocus shortcut="closeDialog" tip="Keep everything">
             Cancel
           </Button>
-          <Button variant="danger" onClick={() => confirm && void remove(confirm)}>
+          <Button variant="danger" onClick={() => confirm && void remove(confirm)} tip="Delete permanently">
             {confirm === "all" ? "Clear library" : "Delete"}
           </Button>
         </div>
