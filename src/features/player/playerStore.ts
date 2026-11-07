@@ -1,0 +1,63 @@
+import { create } from "zustand";
+import { StemEngine, type StemMix } from "../../lib/audio/engine";
+import type { OpenProject } from "../../lib/ipc";
+
+// Lives outside React so playback survives navigating between views.
+type PlayerState = {
+  projectId: string | null;
+  engine: StemEngine | null;
+  loading: number; // 0..1, 1 = ready
+  error: string | null;
+  playing: boolean;
+  mix: StemMix[];
+  load(p: OpenProject): void;
+  unload(): void;
+  setStem(id: string, patch: Partial<Omit<StemMix, "id">>): void;
+  setAll(fn: (m: StemMix) => Partial<Omit<StemMix, "id">>): void;
+};
+
+export const usePlayer = create<PlayerState>((set, get) => ({
+  projectId: null,
+  engine: null,
+  loading: 0,
+  error: null,
+  playing: false,
+  mix: [],
+
+  load(p) {
+    if (get().projectId === p.project.id) return;
+    get().engine?.dispose();
+    const engine = new StemEngine();
+    const mix = p.project.stems.map((s) => ({ id: s.id, muted: false, solo: false, volume: 1 }));
+    set({ projectId: p.project.id, engine, loading: 0.02, error: null, playing: false, mix });
+    engine.subscribe(() => set({ playing: engine.isPlaying }));
+    engine
+      .load(
+        p.project.stems.map((s) => ({ id: s.id, url: p.stemUrls[s.id] })),
+        (d, t) => get().engine === engine && set({ loading: Math.max(0.02, d / t) }),
+      )
+      .then(() => {
+        if (get().engine !== engine) return;
+        engine.setMix(get().mix);
+        set({ loading: 1 });
+      })
+      .catch((e: unknown) => get().engine === engine && set({ error: e instanceof Error ? e.message : String(e) }));
+  },
+
+  unload() {
+    get().engine?.dispose();
+    set({ projectId: null, engine: null, loading: 0, playing: false, mix: [] });
+  },
+
+  setStem(id, patch) {
+    const mix = get().mix.map((m) => (m.id === id ? { ...m, ...patch } : m));
+    set({ mix });
+    get().engine?.setMix(mix);
+  },
+
+  setAll(fn) {
+    const mix = get().mix.map((m) => ({ ...m, ...fn(m) }));
+    set({ mix });
+    get().engine?.setMix(mix);
+  },
+}));

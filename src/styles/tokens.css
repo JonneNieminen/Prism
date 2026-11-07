@@ -1,0 +1,65 @@
+/* Design tokens. Components never use raw colors — only these variables. */
+:root,
+:root[data-theme="dark"] {
+  --bg: #0b0b12;
+  --surface: #14141f;
+  --elevated: #1c1c2b;
+  --border: #2a2a3d;
+  --text: #f2f2f7;
+  --muted: #8a8aa3;
+  --brand-from: #7c5cff;
+  --brand-to: #ff5d8f;
+  --danger: #ff6b6b;
+  --success: #34d399;
+  --warning: #ffb020;
+
+  --stem-vocals: #ff5d8f;
+  --stem-drums: #ffb020;
+  --stem-bass: #7c5cff;
+  --stem-guitar: #2dd4bf;
+  --stem-piano: #5ab0ff;
+  --stem-other: #a3e635;
+  /* generated palette for unknown stems (HSL matched to the above) */
+  --stem-gen-s: 88%;
+  --stem-gen-l: 64%;
+
+  --glass: color-mix(in oklab, var(--surface) 72%, transparent);
+  --glass-strong: color-mix(in oklab, var(--elevated) 86%, transparent);
+  --hairline: color-mix(in oklab, var(--border) 80%, transparent);
+  --overlay: color-mix(in oklab, var(--bg) 70%, transparent);
+  --focus: color-mix(in oklab, var(--brand-from) 70%, white);
+  --shadow: 0 20px 60px -20px rgb(0 0 0 / 0.6);
+  --wave-dim: 0.3;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #fafafc;
+  --surface: #ffffff;
+  --elevated: #f3f3f8;
+  --border: #e2e2ec;
+  --text: #15151f;
+  --muted: #62627a;
+  --brand-from: #6a48f5;
+  --brand-to: #f04a7e;
+  --danger: #e04848;
+  --success: #12a37a;
+  --warning: #d98a00;
+
+  --stem-vocals: #e84a7c;
+  --stem-drums: #e09200;
+  --stem-bass: #6a48f5;
+  --stem-guitar: #12a896;
+  --stem-piano: #2f8ae6;
+  --stem-other: #74b816;
+  --stem-gen-s: 72%;
+  --stem-gen-l: 48%;
+
+  --glass: color-mix(in oklab, var(--surface) 78%, transparent);
+  --glass-strong: color-mix(in oklab, var(--surface) 92%, transparent);
+  --overlay: color-mix(in oklab, var(--text) 25%, transparent);
+  --focus: var(--brand-from);
+  --shadow: 0 20px 50px -24px rgb(40 30 90 / 0.25);
+  --wave-dim: 0.4;
+  color-scheme: light;
+}
