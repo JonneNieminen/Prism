@@ -1,0 +1,61 @@
+# Keeps every dependency Prism uses up to date: npm packages, Rust crates and the GitHub
+# Actions used by the workflows. Related packages are grouped so their versions move together.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 10
+    labels: [dependencies, npm]
+    commit-message:
+      prefix: "deps"
+    groups:
+      # The Tauri JS API and plugins must match the Rust side's minor versions.
+      tauri:
+        patterns: ["@tauri-apps/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      build-tools:
+        patterns: ["vite", "@vitejs/*", "tailwindcss", "@tailwindcss/*", "typescript", "vitest"]
+
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Helsinki
+    open-pull-requests-limit: 10
+    labels: [dependencies, rust]
+    commit-message:
+      prefix: "deps"
+    groups:
+      tauri:
+        patterns: ["tauri", "tauri-*"]
+      audio:
+        patterns: ["symphonia", "rubato", "realfft", "hound", "flacenc", "mp3lame-encoder"]
+      serde:
+        patterns: ["serde", "serde_*", "ts-rs"]
+    ignore:
+      # ort is a release candidate pinned to an ONNX Runtime ABI; upgrade it deliberately
+      # (and re-check Core ML parity) rather than automatically.
+      - dependency-name: "ort"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Helsinki
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions:
+        patterns: ["*"]

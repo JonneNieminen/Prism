@@ -5,13 +5,12 @@ use std::fs::File;
 use std::path::Path;
 
 use serde::Serialize;
-use symphonia::core::audio::SampleBuffer;
-use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
+use symphonia::core::codecs::audio::AudioDecoderOptions;
 use symphonia::core::errors::Error as SymError;
-use symphonia::core::formats::FormatOptions;
+use symphonia::core::formats::probe::Hint;
+use symphonia::core::formats::{FormatOptions, TrackType};
 use symphonia::core::io::MediaSourceStream;
-use symphonia::core::meta::{MetadataOptions, MetadataRevision, StandardTagKey};
-use symphonia::core::probe::Hint;
+use symphonia::core::meta::{MetadataOptions, MetadataRevision, StandardTag};
 use ts_rs::TS;
 
 use crate::util::CancelToken;
@@ -74,8 +73,8 @@ pub fn decode_file(path: &Path, cancel: &CancelToken) -> Result<(Audio, TrackInf
     }
     let corrupt = |why: String| PrismError::CorruptFile(format!("“{file_name}” couldn't be read — {why}"));
 
-    let mut probed = symphonia::default::get_probe()
-        .format(&hint, mss, &FormatOptions::default(), &MetadataOptions::default())
+    let mut format = symphonia::default::get_probe()
+        .probe(&hint, mss, FormatOptions::default(), MetadataOptions::default())
         .map_err(|e| match e {
             SymError::Unsupported(_) => {
                 PrismError::UnsupportedFile(format!("“{file_name}” uses an audio format Prism can't decode."))
@@ -83,45 +82,50 @@ pub fn decode_file(path: &Path, cancel: &CancelToken) -> Result<(Audio, TrackInf
             other => corrupt(format!("the file looks damaged ({other})")),
         })?;
 
+    // Title / artist from any metadata revision (ID3 found while probing, or the container's).
     let mut title = None;
     let mut artist = None;
     let mut read_tags = |rev: &MetadataRevision| {
-        for tag in rev.tags() {
-            match tag.std_key {
-                Some(StandardTagKey::TrackTitle) if title.is_none() => title = Some(tag.value.to_string()),
-                Some(StandardTagKey::Artist) if artist.is_none() => artist = Some(tag.value.to_string()),
+        let tracks = rev.per_track.iter().flat_map(|t| t.metadata.tags.iter());
+        for tag in rev.media.tags.iter().chain(tracks) {
+            match &tag.std {
+                Some(StandardTag::TrackTitle(v)) if title.is_none() => title = Some(v.to_string()),
+                Some(StandardTag::Artist(v)) if artist.is_none() => artist = Some(v.to_string()),
                 _ => {}
             }
         }
     };
-    if let Some(m) = probed.metadata.get()
-        && let Some(rev) = m.current()
     {
-        read_tags(rev);
-    }
-    let mut format = probed.format;
-    if let Some(rev) = format.metadata().current() {
-        read_tags(rev);
+        let mut meta = format.metadata();
+        if let Some(rev) = meta.current() {
+            read_tags(rev);
+        }
+        if let Some(rev) = meta.skip_to_latest() {
+            read_tags(rev);
+        }
     }
 
-    let track = format
-        .tracks()
-        .iter()
-        .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        .ok_or_else(|| corrupt("it contains no audio track".into()))?;
+    let track = format.default_track(TrackType::Audio).ok_or_else(|| corrupt("it contains no audio track".into()))?;
     let track_id = track.id;
+    let params = track
+        .codec_params
+        .as_ref()
+        .and_then(|p| p.audio())
+        .cloned()
+        .ok_or_else(|| corrupt("it contains no audio track".into()))?;
     let mut decoder = symphonia::default::get_codecs()
-        .make(&track.codec_params, &DecoderOptions::default())
+        .make_audio_decoder(&params, &AudioDecoderOptions::default())
         .map_err(|_| PrismError::UnsupportedFile(format!("“{file_name}” uses an audio codec Prism can't decode.")))?;
 
     let mut channels: Vec<Vec<f32>> = Vec::new();
-    let mut sample_rate = track.codec_params.sample_rate.unwrap_or(0);
-    let mut sbuf: Option<SampleBuffer<f32>> = None;
+    let mut sample_rate = params.sample_rate.unwrap_or(0);
+    let mut planes: Vec<Vec<f32>> = Vec::new();
     let mut decode_errors = 0usize;
     let mut packets = 0usize;
     loop {
         let packet = match format.next_packet() {
-            Ok(p) => p,
+            Ok(Some(p)) => p,
+            Ok(None) => break,
             Err(SymError::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
             Err(SymError::ResetRequired) => break,
             Err(e) => {
@@ -131,7 +135,7 @@ pub fn decode_file(path: &Path, cancel: &CancelToken) -> Result<(Audio, TrackInf
                 return Err(corrupt(format!("{e}")));
             }
         };
-        if packet.track_id() != track_id {
+        if packet.track_id != track_id {
             continue;
         }
         packets += 1;
@@ -140,23 +144,17 @@ pub fn decode_file(path: &Path, cancel: &CancelToken) -> Result<(Audio, TrackInf
         }
         match decoder.decode(&packet) {
             Ok(buf) => {
-                let spec = *buf.spec();
-                sample_rate = spec.rate;
-                let nch = spec.channels.count();
+                sample_rate = buf.spec().rate();
+                let nch = buf.spec().channels().count();
                 if channels.is_empty() {
                     channels = vec![Vec::new(); nch];
                 }
                 if nch != channels.len() {
                     continue;
                 }
-                let need = buf.capacity() as u64;
-                if sbuf.as_ref().is_none_or(|b| b.capacity() < need as usize) {
-                    sbuf = Some(SampleBuffer::<f32>::new(need, spec));
-                }
-                let sb = sbuf.as_mut().unwrap();
-                sb.copy_interleaved_ref(buf);
-                for (i, s) in sb.samples().iter().enumerate() {
-                    channels[i % nch].push(*s);
+                buf.copy_to_vecs_planar::<f32>(&mut planes);
+                for (dst, src) in channels.iter_mut().zip(&planes) {
+                    dst.extend_from_slice(src);
                 }
             }
             Err(SymError::DecodeError(_)) => {
@@ -226,7 +224,8 @@ pub fn to_channels(audio: Audio, n: usize) -> Audio {
 
 /// High quality synchronous resampling. Output length = round(n * to / from).
 pub fn resample(audio: Audio, to: u32) -> Result<Audio> {
-    use rubato::{FftFixedIn, Resampler};
+    use rubato::audioadapter_buffers::direct::SequentialSliceOfVecs;
+    use rubato::{Fft, FixedSync, Resampler};
     let from = audio.sample_rate;
     if from == to || audio.frames() == 0 {
         return Ok(audio);
@@ -235,37 +234,18 @@ pub fn resample(audio: Audio, to: u32) -> Result<Audio> {
     let n = audio.frames();
     let expected = (n as f64 * to as f64 / from as f64).round() as usize;
     let err = |e: &dyn std::fmt::Display| PrismError::Other(format!("Resampling failed: {e}"));
-    let mut r = FftFixedIn::<f32>::new(from as usize, to as usize, 1024, 2, nch).map_err(|e| err(&e))?;
-    let delay = r.output_delay();
-    let mut out: Vec<Vec<f32>> = vec![Vec::with_capacity(expected + delay + 4096); nch];
-    let push = |o: Vec<Vec<f32>>, out: &mut Vec<Vec<f32>>| {
-        for (d, s) in out.iter_mut().zip(o) {
-            d.extend_from_slice(&s);
+    let mut r = Fft::<f32>::new(from as usize, to as usize, 1024, nch, FixedSync::Input).map_err(|e| err(&e))?;
+    let input = SequentialSliceOfVecs::new(&audio.channels, nch, n).map_err(|e| err(&e))?;
+    // process_all trims the startup delay and returns exactly the resampled frames (interleaved).
+    let data = r.process_all(&input, n, None).map_err(|e| err(&e))?.take_data();
+    let frames = data.len() / nch;
+    let mut out = vec![Vec::with_capacity(expected); nch];
+    for f in 0..frames {
+        for (c, o) in out.iter_mut().enumerate() {
+            o.push(data[f * nch + c]);
         }
-    };
-    let mut pos = 0;
-    while pos + r.input_frames_next() <= n {
-        let need = r.input_frames_next();
-        let slices: Vec<&[f32]> = audio.channels.iter().map(|c| &c[pos..pos + need]).collect();
-        let o = r.process(&slices, None).map_err(|e| err(&e))?;
-        push(o, &mut out);
-        pos += need;
-    }
-    if pos < n {
-        let slices: Vec<&[f32]> = audio.channels.iter().map(|c| &c[pos..]).collect();
-        let o = r.process_partial(Some(&slices), None).map_err(|e| err(&e))?;
-        push(o, &mut out);
-    }
-    while out[0].len() < expected + delay {
-        let o = r.process_partial::<&[f32]>(None, None).map_err(|e| err(&e))?;
-        if o[0].is_empty() {
-            break;
-        }
-        push(o, &mut out);
     }
     for c in out.iter_mut() {
-        let end = (delay + expected).min(c.len());
-        *c = c[delay.min(end)..end].to_vec();
         c.resize(expected, 0.0);
     }
     Ok(Audio { sample_rate: to, channels: out })

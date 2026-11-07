@@ -66,7 +66,7 @@ fn write_atomic(target: &Path, f: impl FnOnce(&Path) -> Result<()>) -> Result<()
     let tmp = part_path(target);
     match f(&tmp) {
         Ok(()) => {
-            fs::rename(&tmp, target)?;
+            crate::util::replace_file(&tmp, target)?;
             Ok(())
         }
         Err(e) => {

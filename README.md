@@ -1,18 +1,16 @@
 <div align="center">
 
-<img src="docs/logo.svg" width="120" height="120" alt="Prism logo" />
+<picture>
+  <source media="(prefers-color-scheme: light)" srcset="docs/art/banner-light.png" />
+  <img src="docs/art/banner-dark.png" alt="Prism — split any song into its stems with local AI" width="100%" />
+</picture>
 
-# Prism
-
-**Split any song into its stems — privately, on your Mac.**
-
-A song goes in as white light and comes out as separate colored beams: vocals, drums, bass and more,<br/>
-separated by a local AI model. Remove instruments, solo them, mix them, export them. Nothing leaves your computer.
+<br/><br/>
 
 [![Build](https://github.com/JonneNieminen/Prism/actions/workflows/build.yml/badge.svg)](https://github.com/JonneNieminen/Prism/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/JonneNieminen/Prism?filter=v*&label=release&color=5a60c8)](https://github.com/JonneNieminen/Prism/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/JonneNieminen/Prism?color=5a60c8)](LICENSE)
-![Platform](https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20Silicon-1d1d1f?logo=apple)
+![Platforms](https://img.shields.io/badge/platforms-macOS%20·%20Windows%20·%20Linux-1d1d1f)
 <br/>
 ![Top language](https://img.shields.io/github/languages/top/JonneNieminen/Prism?color=dea584)
 ![Languages](https://img.shields.io/github/languages/count/JonneNieminen/Prism)
@@ -22,11 +20,27 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![ONNX Runtime](https://img.shields.io/badge/ONNX%20Runtime-1.31-005CED?logo=onnx&logoColor=white)](https://onnxruntime.ai)
 
+A song goes in as white light and comes out as separate colored beams: vocals, drums, bass and more,<br/>
+separated by a local AI model. Remove instruments, solo them, mix them, export them. Nothing leaves your computer.
+
 <br/>
 
 <img src="docs/screenshots/player-dark.png" alt="Prism player with four separated stems" width="880" />
 
 </div>
+
+<br/>
+
+<table>
+  <tr>
+    <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-separate-light.png" /><img src="docs/art/card-separate-dark.png" alt="Separate: vocals, drums, bass and more" /></picture></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-mix-light.png" /><img src="docs/art/card-mix-dark.png" alt="Mix live: mute, solo and balance every stem" /></picture></td>
+  </tr>
+  <tr>
+    <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-export-light.png" /><img src="docs/art/card-export-dark.png" alt="Export a stem, all stems or your mix" /></picture></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-private-light.png" /><img src="docs/art/card-private-dark.png" alt="Private by design: runs on your computer" /></picture></td>
+  </tr>
+</table>
 
 ## Features
 
@@ -37,7 +51,8 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 - **Library** of past separations that reopen instantly, remembering which model made them.
 - **Pluggable models**: import your own ONNX models, or download more from a checksum-verified catalog (6-stem Demucs, fine-tuned Demucs, MDX-Net vocal and instrumental models).
 - **Fast on Apple Silicon** via Core ML — about 11× realtime on an M1 Pro — with automatic CPU fallback.
-- **Native Mac feel**: light and dark appearance, a full menu bar, tooltips on every control, in-app Help and a Shortcuts reference.
+- **macOS, Windows and Linux** (x64 and ARM). Windows and Linux separate on the CPU.
+- **Native feel**: light and dark appearance, a full menu bar, tooltips on every control, in-app Help and a Shortcuts reference.
 
 <table>
   <tr>
@@ -52,9 +67,20 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 
 ## Install
 
-1. Download the latest **`Prism_x.y.z_aarch64.dmg`** from [Releases](https://github.com/JonneNieminen/Prism/releases/latest) (Apple Silicon, macOS 13 or later).
-2. Open the `.dmg` and drag **Prism** to Applications.
-3. The app isn't notarized yet, so the first time **right-click Prism → Open → Open**. After that it opens normally.
+Download the installer for your computer from [Releases](https://github.com/JonneNieminen/Prism/releases/latest):
+
+| Platform | File |
+|---|---|
+| **macOS** (Apple silicon / Intel) | `Prism-x.y.z-osx-arm64.dmg` / `Prism-x.y.z-osx-x64.dmg` |
+| **Windows** (x64 / ARM) | `Prism-x.y.z-win-x64-setup.exe` / `Prism-x.y.z-win-arm64-setup.exe` |
+| **Linux** (x64 / ARM) | `Prism-x.y.z-linux-x64.AppImage` or `.deb` (`linux-arm64` too) |
+
+- **macOS**: open the `.dmg` and drag Prism to Applications. The build isn't notarized yet, so run this once in Terminal (the DMG's *READ ME FIRST* explains it):
+  ```bash
+  xattr -dr com.apple.quarantine /Applications/Prism.app
+  ```
+- **Windows**: run the installer. SmartScreen may warn — choose *More info → Run anyway*.
+- **Linux**: `chmod +x Prism-*.AppImage` and run it, or install the `.deb`.
 
 ## Using Prism
 
@@ -74,29 +100,29 @@ Drop a song onto the **Separate** screen, or press **⌘O** to choose one. Check
 
 When separation finishes the player opens. Every stem plays in sync.
 
-- **M** mutes a stem, **S** solos it. Solo wins over mute, like a mixing desk.
+- Click a stem's name or its colored dot to mute it; **⇧-click** mutes or unmutes a whole range. **S** solos a stem — solo wins over mute, like a mixing desk.
 - Drag a stem's slider to change its volume (up to 150%); double-click it to reset.
 - **Karaoke** removes the vocals, **A cappella** keeps only the vocals, **Reset** turns everything back on.
-- Click anywhere in a waveform to jump there.
+- Click a waveform to jump there, or drag to scrub.
 
 ### 3. Export
 
 - **Export mix** (**⌘E**) saves exactly what you hear as one file.
-- **All stems** (**⇧⌘E**) saves a `.zip` with one file per stem.
+- **Download all stems** (**⇧⌘E**) saves a `.zip` with one file per stem.
 - The download button on a stem saves just that stem.
 
 Files are named like `Song Title - vocals.wav`. Choose a default save folder in **Settings**.
 
 ### Library, models and settings
 
-- **Library** keeps every separation, so reopening a song is instant. Rename or delete entries there; clear everything in *Settings → Storage*.
+- **Library** keeps your separations, so reopening a song is instant. To save disk space songs are deleted after 7 days by default — choose another period or *Never* in *Settings → Storage → Delete old songs*.
 - **Models** lists installed models (stems, size, license, speed/quality) and a catalog of downloadable ones. Downloads use HTTPS and are SHA-256 verified before use. A model's license is shown before its first use, and non-commercial licenses are flagged.
 - **Settings**: default model and quality, hardware acceleration, export format and bitrate, default save folder, appearance, storage and catalog URL.
 - **Appearance**: match macOS, Light or Dark — from the sidebar, *View → Appearance*, Settings, or **⇧⌘L**.
 
 ## Keyboard shortcuts
 
-Hover any button in Prism to see its shortcut, or press **⌘/** for the in-app reference.
+Hover any button in Prism to see its shortcut, or press **⌘/** for the in-app reference. On Windows and Linux, **⌘** is **Ctrl**.
 
 | General | | Navigation | |
 |---|---|---|---|
@@ -127,7 +153,7 @@ Hover any button in Prism to see its shortcut, or press **⌘/** for the in-app 
 
 ## Build from source
 
-Requirements: macOS 13+ on Apple Silicon, [Node](https://nodejs.org) 20+, [Rust](https://rustup.rs) (stable) and Xcode command line tools.
+Requirements: [Node](https://nodejs.org) 20+, [Rust](https://rustup.rs) (stable) and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS (Xcode command line tools on macOS). On Intel Macs, also run `export ORT_DYLIB_PATH=$(build/fetch-onnxruntime-intel.sh)`.
 
 ```bash
 git clone https://github.com/JonneNieminen/Prism.git && cd Prism

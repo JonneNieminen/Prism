@@ -124,7 +124,7 @@ fn separate_store_export() {
     )
     .unwrap();
     let z = zip::ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
-    let mut names: Vec<_> = z.file_names().map(String::from).collect();
+    let mut names: Vec<String> = z.file_names().map(|n| n.unwrap().into_owned()).collect();
     names.sort();
     let t = prism_core::util::sanitize_filename(&p.title);
     let want: Vec<String> = ["bass", "drums", "other", "vocals"].iter().map(|s| format!("{t} - {s}.flac")).collect();

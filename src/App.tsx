@@ -1,4 +1,5 @@
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { Upload } from "lucide-react";
 import { Component, useEffect, useState, type ReactNode } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { Toasts } from "./components/Toasts";
@@ -53,6 +54,28 @@ function useKeyboard() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Drop a song anywhere in the window to open it.
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    let alive = true;
+    void backend().then(async (b) => {
+      const o = await b.onDragDrop((e) => {
+        if (e.type === "enter" || e.type === "over") useApp.setState({ dragOver: true });
+        else if (e.type === "leave") useApp.setState({ dragOver: false });
+        else {
+          useApp.setState({ dragOver: false });
+          if (e.paths[0]) void useApp.getState().loadSource(e.paths[0]);
+        }
+      });
+      if (alive) off = o;
+      else o();
+    });
+    return () => {
+      alive = false;
+      off?.();
+    };
   }, []);
 
   // Native macOS menu → same commands.
@@ -127,10 +150,35 @@ export function App() {
             </AnimatePresence>
           )}
         </main>
+        <DropOverlay />
         <Toasts />
         <TooltipLayer />
       </div>
     </MotionConfig>
+  );
+}
+
+/** Shown while a file is dragged over any screen except Separate (which has its own drop zone). */
+function DropOverlay() {
+  const show = useApp((s) => s.dragOver && s.view !== "separate");
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-[var(--overlay)]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.12 }}
+        >
+          <div className="rounded-2xl border-[1.5px] border-dashed border-accent bg-surface px-10 py-8 text-center shadow-[var(--shadow-pop)]">
+            <Upload size={22} className="mx-auto mb-3 text-accent" />
+            <div className="text-[15px] font-medium">Drop to open in Prism</div>
+            <div className="mt-1 text-[12px] text-muted">MP3, WAV, FLAC, M4A or OGG</div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

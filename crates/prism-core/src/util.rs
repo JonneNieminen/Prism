@@ -47,6 +47,16 @@ pub fn is_plain_file_name(name: &str) -> bool {
     !name.is_empty() && name.len() <= 128 && !name.starts_with('.') && !name.contains(['/', '\\', '\0']) && name != ".."
 }
 
+/// Atomically move `from` over `to`. Windows' rename refuses to replace an existing
+/// file, so the old one is removed first there.
+pub fn replace_file(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
+    #[cfg(windows)]
+    if to.is_file() {
+        std::fs::remove_file(to)?;
+    }
+    std::fs::rename(from, to)
+}
+
 pub fn dir_size(path: &std::path::Path) -> u64 {
     let Ok(rd) = std::fs::read_dir(path) else { return 0 };
     rd.flatten()

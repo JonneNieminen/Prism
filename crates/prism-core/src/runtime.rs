@@ -5,7 +5,6 @@ use std::sync::OnceLock;
 
 use ort::environment::Environment;
 
-use ort::ep::coreml::{ComputeUnits, ModelFormat};
 use ort::session::Session;
 use ort::session::builder::{AutoDevicePolicy, GraphOptimizationLevel};
 use serde::{Deserialize, Serialize};
@@ -31,7 +30,7 @@ pub struct RuntimeOptions {
 }
 
 pub const CPU_LABEL: &str = "CPU";
-pub const ACCELERATED_LABEL: &str = "Apple Silicon (Core ML)";
+pub const ACCELERATED_LABEL: &str = if cfg!(target_arch = "aarch64") { "Apple Silicon (Core ML)" } else { "Core ML" };
 
 /// Accelerators can misbehave numerically on some graphs; adapters call this on
 /// every output so the caller can retry on CPU.
@@ -84,6 +83,7 @@ pub fn session(path: &Path, opts: &RuntimeOptions) -> Result<(Session, String)> 
 
 #[cfg(target_os = "macos")]
 fn accelerated(path: &Path, opts: &RuntimeOptions) -> Option<(Session, String)> {
+    use ort::ep::coreml::{ComputeUnits, ModelFormat};
     let mut ep =
         ort::ep::CoreML::default().with_model_format(ModelFormat::MLProgram).with_compute_units(ComputeUnits::All);
     if let Some(dir) = &opts.cache_dir {

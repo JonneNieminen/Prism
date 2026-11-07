@@ -39,6 +39,8 @@ type State = {
   projects: Project[];
   toasts: Toast[];
   exportTarget: ExportTarget | null;
+  /** A file is being dragged over the window. */
+  dragOver: boolean;
 
   setExportTarget(t: ExportTarget | null): void;
   pickSource(): Promise<void>;
@@ -72,6 +74,7 @@ export const useApp = create<State>((set, get) => ({
   projects: [],
   toasts: [],
   exportTarget: null,
+  dragOver: false,
 
   go: (view) => set({ view }),
   setExportTarget: (exportTarget) => set({ exportTarget }),
@@ -98,6 +101,7 @@ export const useApp = create<State>((set, get) => ({
     try {
       set({ settings: await (await backend()).setSettings(next) });
       if ("activeModelId" in patch) await get().refreshModels();
+      if ("libraryRetentionDays" in patch) await get().refreshProjects();
     } catch (e) {
       set({ settings: cur });
       get().toast({ tone: "error", title: "Couldn't save settings", body: toAppError(e).message });

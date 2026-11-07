@@ -1,0 +1,57 @@
+# Shared job setup: Node + npm deps, Rust (+ cache), Linux system libraries for Tauri,
+# the bundled model weights (SHA-256 verified) and, on Intel Macs, ONNX Runtime 1.23.2.
+name: Setup Prism build
+description: Toolchains, dependencies and model weights for building and testing Prism.
+
+inputs:
+  rust-components:
+    description: Extra rustup components (e.g. "clippy, rustfmt").
+    default: ""
+  cache-key:
+    description: Extra key for the Rust build cache (e.g. "release").
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 24
+        cache: npm
+
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: ${{ inputs.rust-components }}
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        key: ${{ inputs.cache-key }}
+
+    - name: Linux system libraries (WebKitGTK etc.)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y -q --no-install-recommends \
+          libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
+          libxdo-dev patchelf file xdg-utils
+
+    - name: npm ci
+      shell: bash
+      run: npm ci
+
+    - name: Cache model weights
+      uses: actions/cache@v6
+      with:
+        path: models/**/*.onnx
+        key: models-${{ hashFiles('models/**/model.json') }}
+
+    - name: Fetch bundled model (SHA-256 verified)
+      shell: bash
+      run: npm run fetch-models
+
+    # Intel Macs load ONNX Runtime dynamically (no x86_64 macOS build after 1.23).
+    - name: ONNX Runtime for Intel Mac
+      if: runner.os == 'macOS' && runner.arch == 'X64'
+      shell: bash
+      run: echo "ORT_DYLIB_PATH=$(build/fetch-onnxruntime-intel.sh)" >> "$GITHUB_ENV"

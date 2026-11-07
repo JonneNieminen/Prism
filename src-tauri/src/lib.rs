@@ -48,11 +48,13 @@ struct AppInfo {
 }
 
 #[tauri::command]
-async fn app_info(state: State<'_, AppState>) -> Res<AppInfo> {
+async fn app_info(app: AppHandle, state: State<'_, AppState>) -> Res<AppInfo> {
     let s = state.inner().clone();
+    // The bundle version (stamped by CI/release builds), not the crate version.
+    let version = app.package_info().version.to_string();
     blocking(move || {
         Ok(AppInfo {
-            version: env!("CARGO_PKG_VERSION").into(),
+            version,
             data_dir: s.paths.data.display().to_string(),
             library_bytes: s.library.size_bytes(),
             accel_cache_bytes: dir_size(&s.paths.accel_cache),
@@ -313,6 +315,15 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let st = AppState::new(app.handle())?;
+            // Remove expired songs now, then re-check hourly for long-running sessions.
+            st.purge_expired();
+            let sweeper = st.clone();
+            std::thread::spawn(move || {
+                loop {
+                    std::thread::sleep(std::time::Duration::from_secs(60 * 60));
+                    sweeper.purge_expired();
+                }
+            });
             app.manage(st);
             let m = menu::build(app.handle())?;
             app.set_menu(m)?;

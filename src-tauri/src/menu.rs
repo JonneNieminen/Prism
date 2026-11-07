@@ -16,13 +16,14 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
 
     let about = AboutMetadata {
         name: Some("Prism".into()),
-        version: Some(env!("CARGO_PKG_VERSION").into()),
+        version: Some(app.package_info().version.to_string()),
         comments: Some("Local AI stem separation".into()),
         license: Some("MIT".into()),
         website: Some("https://github.com/JonneNieminen/Prism".into()),
         ..Default::default()
     };
 
+    // macOS has an application menu; Windows/Linux put Settings and Quit in File instead.
     let app_menu = SubmenuBuilder::new(app, "Prism")
         .about(Some(about))
         .separator()
@@ -37,16 +38,20 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .quit()
         .build()?;
 
-    let file = SubmenuBuilder::new(app, "File")
+    let mut file = SubmenuBuilder::new(app, "File")
         .item(&item("open", "Open Song…", Some("CmdOrCtrl+O"))?)
         .item(&item("separate", "Separate", Some("CmdOrCtrl+Enter"))?)
         .item(&item("cancel", "Cancel Separation", Some("CmdOrCtrl+Period"))?)
         .separator()
         .item(&item("exportMix", "Export Current Mix…", Some("CmdOrCtrl+E"))?)
         .item(&item("exportStems", "Export All Stems…", Some("CmdOrCtrl+Shift+E"))?)
-        .separator()
-        .close_window()
-        .build()?;
+        .separator();
+    if !cfg!(target_os = "macos") {
+        file = file.item(&item("goSettings", "Settings…", Some("CmdOrCtrl+Comma"))?).separator().quit();
+    } else {
+        file = file.close_window();
+    }
+    let file = file.build()?;
 
     let edit = SubmenuBuilder::new(app, "Edit").undo().redo().separator().cut().copy().paste().select_all().build()?;
 
@@ -89,7 +94,11 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item("goShortcuts", "Keyboard Shortcuts", Some("CmdOrCtrl+Slash"))?)
         .build()?;
 
-    Menu::with_items(app, &[&app_menu, &file, &edit, &view, &playback, &window, &help])
+    if cfg!(target_os = "macos") {
+        Menu::with_items(app, &[&app_menu, &file, &edit, &view, &playback, &window, &help])
+    } else {
+        Menu::with_items(app, &[&file, &edit, &view, &playback, &help])
+    }
 }
 
 pub fn forward<R: Runtime>(app: &AppHandle<R>, id: &str) {

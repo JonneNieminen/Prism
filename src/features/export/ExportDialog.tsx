@@ -1,4 +1,5 @@
 import { Archive, AudioLines, FileAudio } from "lucide-react";
+import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { ExportFormat, Project } from "../../bindings";
 import { Modal } from "../../components/Modal";
@@ -137,8 +138,18 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
 
       {busy !== null ? (
         <div className="mt-5">
-          <ProgressBar value={kind === "zip" ? busy : 0.6} label="Export progress" />
-          <p className="mt-2 text-center text-[12px] text-muted">Encoding…</p>
+          {kind === "zip" ? (
+            <ProgressBar value={busy} label="Export progress" />
+          ) : (
+            <div role="progressbar" aria-label="Exporting" className="relative h-1.5 overflow-hidden rounded-full bg-pressed">
+              <motion.div
+                className="absolute inset-y-0 w-1/3 rounded-full bg-accent"
+                animate={{ left: ["-33%", "100%"] }}
+                transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </div>
+          )}
+          <p className="mt-2 text-center text-[12px] text-muted">{kind === "zip" ? `Encoding stem ${Math.min(project.stems.length, Math.floor(busy * project.stems.length) + 1)} of ${project.stems.length}…` : "Encoding…"}</p>
         </div>
       ) : (
         <div className="mt-5 flex justify-end gap-2">

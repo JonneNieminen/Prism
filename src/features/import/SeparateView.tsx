@@ -1,12 +1,11 @@
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowRight, FileAudio, FileWarning, MemoryStick, Music2, RotateCcw, Upload, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowRight, FileAudio, FileWarning, LayoutGrid, List, MemoryStick, Music2, RotateCcw, Upload, X } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
 import type { AppError, ModelInfo, Quality } from "../../bindings";
 import { Waveform } from "../../components/Waveform";
 import { Button, Card, Chip, IconButton, Kbd, Meter, ProgressBar, Segmented, StemChip, cx } from "../../components/ui";
 import { stemColor } from "../../lib/colors";
 import { formatDate, formatEta, formatTime, QUALITY_LABEL } from "../../lib/format";
-import { backend } from "../../lib/ipc";
 import { useApp } from "../../store/app";
 import { LicenseDialog } from "../models/LicenseDialog";
 import { Refraction } from "./Refraction";
@@ -49,39 +48,15 @@ function Fade({ children }: { children: React.ReactNode }) {
   );
 }
 
-function useDropTarget(onPath: (p: string) => void) {
-  const [over, setOver] = useState(false);
-  useEffect(() => {
-    let off: (() => void) | undefined;
-    let alive = true;
-    void backend().then(async (b) => {
-      const o = await b.onDragDrop((e) => {
-        if (e.type === "enter" || e.type === "over") setOver(true);
-        else if (e.type === "leave") setOver(false);
-        else {
-          setOver(false);
-          if (e.paths[0]) onPath(e.paths[0]);
-        }
-      });
-      if (alive) off = o;
-      else o();
-    });
-    return () => {
-      alive = false;
-      off?.();
-    };
-  }, [onPath]);
-  return over;
-}
-
 function DropZone() {
-  const loadSource = useApp((s) => s.loadSource);
   const pickSource = useApp((s) => s.pickSource);
   const error = useApp((s) => s.sourceError);
   const projects = useApp((s) => s.projects);
   const openProject = useApp((s) => s.openProject);
   const go = useApp((s) => s.go);
-  const over = useDropTarget(loadSource);
+  const layout = useApp((s) => s.settings?.recentLayout ?? "tiles");
+  const updateSettings = useApp((s) => s.updateSettings);
+  const over = useApp((s) => s.dragOver);
 
   return (
     <div>
@@ -127,30 +102,68 @@ function DropZone() {
         <div className="mt-9">
           <div className="mb-2.5 flex items-center justify-between px-1">
             <h2 className="text-[12px] font-semibold text-muted">Recent</h2>
-            <button className="text-[12px] text-muted hover:text-text" onClick={() => go("library")} data-tip="See every separated song" data-shortcut="goLibrary">
-              Show all
-            </button>
-          </div>
-          <div className="grid grid-cols-3 gap-2.5">
-            {projects.slice(0, 3).map((p) => (
-              <button
-                key={p.id}
-                onClick={() => openProject(p.id)}
-                data-tip={`Open ${p.title} — stems are cached, no waiting`}
-                className="card p-3.5 text-left transition-colors hover:bg-elevated"
-              >
-                <div className="truncate text-[13px] font-medium">{p.title}</div>
-                <div className="mt-0.5 text-[12px] text-muted">
-                  {formatTime(p.durationSecs)} · {formatDate(p.createdAt)}
-                </div>
-                <div className="mt-3 flex gap-1">
-                  {p.stems.map((s) => (
-                    <span key={s.id} className="h-1 flex-1 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
-                  ))}
-                </div>
+            <div className="flex items-center gap-3">
+              <Segmented
+                label="Recent layout"
+                size="sm"
+                value={layout}
+                onChange={(v) => void updateSettings({ recentLayout: v })}
+                options={[
+                  { value: "tiles", label: <LayoutGrid size={13} />, aria: "Show recent songs as tiles", tip: "Show recent songs as tiles" },
+                  { value: "list", label: <List size={13} />, aria: "Show recent songs as a list", tip: "Show recent songs as a list" },
+                ]}
+              />
+              <button className="text-[12px] text-muted hover:text-text" onClick={() => go("library")} data-tip="See every separated song" data-shortcut="goLibrary">
+                Show all
               </button>
-            ))}
+            </div>
           </div>
+          {layout === "tiles" ? (
+            <div className="grid grid-cols-3 gap-2.5">
+              {projects.slice(0, 3).map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => openProject(p.id)}
+                  data-tip={`Open ${p.title} — stems are cached, no waiting`}
+                  className="card p-3.5 text-left transition-colors hover:bg-elevated"
+                >
+                  <div className="truncate text-[13px] font-medium">{p.title}</div>
+                  <div className="mt-0.5 text-[12px] text-muted">
+                    {formatTime(p.durationSecs)} · {formatDate(p.createdAt)}
+                  </div>
+                  <div className="mt-3 flex gap-1">
+                    {p.stems.map((s) => (
+                      <span key={s.id} className="h-1 flex-1 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
+                    ))}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <ul className="card divide-y divide-[var(--border)] overflow-hidden">
+              {projects.slice(0, 6).map((p) => (
+                <li key={p.id}>
+                  <button
+                    onClick={() => openProject(p.id)}
+                    data-tip={`Open ${p.title} — stems are cached, no waiting`}
+                    className="flex w-full items-center gap-3.5 px-3.5 py-2.5 text-left transition-colors hover:bg-elevated/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13px] font-medium">{p.title}</div>
+                      <div className="mt-0.5 truncate text-[12px] text-muted">
+                        {[p.artist, formatTime(p.durationSecs), formatDate(p.createdAt)].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {p.stems.map((s) => (
+                        <span key={s.id} className="h-1.5 w-5 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
+                      ))}
+                    </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>
@@ -212,8 +225,6 @@ function SourceCard() {
   const separate = useApp((s) => s.separate);
   const updateSettings = useApp((s) => s.updateSettings);
   const jobError = useApp((s) => s.jobError);
-  const loadSource = useApp((s) => s.loadSource);
-  useDropTarget(loadSource);
 
   const list = (models?.listing.models ?? []).filter((m) => !m.problem && !settings.hiddenModels.includes(m.manifest.id));
   const modelId = list.find((m) => m.manifest.id === settings.activeModelId)?.manifest.id ?? list[0]?.manifest.id;

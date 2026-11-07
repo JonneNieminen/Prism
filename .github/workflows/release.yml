@@ -1,0 +1,152 @@
+# Release: tests, builds the installers for every platform and publishes them as a GitHub
+# Release with install notes. Run it from the Actions tab. The version is the latest vX.Y.Z tag
+# bumped by the chosen release type, unless an explicit version is given.
+#
+# PUSH-TO-APPS PLACEHOLDER: when in-app updates land, installed apps will read their update
+# feed from these releases; publish the feed files from the `publish` job.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-type:
+        description: "Release type (bumps the latest vX.Y.Z tag)"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: "Explicit version (optional, overrides release type), e.g. 1.2.0 or 1.3.0-beta.1"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare version
+    runs-on: ubuntu-26.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tags
+
+      - name: Compute version
+        id: version
+        shell: bash
+        env:
+          RELEASE_TYPE: ${{ inputs.release-type }}
+          EXPLICIT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$'
+
+          if [[ -n "${EXPLICIT// }" ]]; then
+            version="${EXPLICIT#v}"
+            [[ "$version" =~ $semver ]] || { echo "::error::'$version' is not a three-part SemVer version (X.Y.Z or X.Y.Z-pre)."; exit 1; }
+          else
+            latest=$(git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+            latest="${latest:-v0.0.0}"
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            case "$RELEASE_TYPE" in
+              major) version="$((major + 1)).0.0" ;;
+              minor) version="${major}.$((minor + 1)).0" ;;
+              patch) version="${major}.${minor}.$((patch + 1))" ;;
+            esac
+            echo "Latest release tag: $latest -> $RELEASE_TYPE -> $version"
+          fi
+
+          tag="v$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Tag $tag already exists. Pick another version or release type."
+            exit 1
+          fi
+
+          prerelease=false
+          [[ "$version" == *-* ]] && prerelease=true
+
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "### Releasing Prism $version ($tag)" >> "$GITHUB_STEP_SUMMARY"
+
+  test:
+    name: Test
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: npm run build
+      - run: cargo test --workspace
+
+  package:
+    name: Package
+    needs: [prepare, test]
+    uses: ./.github/workflows/package.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      retention-days: 7
+
+  # ---------------------------------------------------------------------------------------
+  # SIGNING PLACEHOLDERS (unsigned until the secrets exist)
+  # macOS:   import the Developer ID certificate into a temporary keychain, then sign and
+  #          notarize Prism.app (codesign + xcrun notarytool) before make-dmg.sh in package.yml.
+  # Windows: sign the NSIS installer (e.g. AzureSignTool / Trusted Signing) in package.yml.
+  # ---------------------------------------------------------------------------------------
+
+  publish:
+    name: Publish GitHub release
+    needs: [prepare, package]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Prism-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          notes=$(gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" --jq .body)
+          {
+            echo "## Install"
+            echo
+            echo "- **macOS**: download the \`.dmg\` for your Mac (\`osx-arm64\` = Apple silicon, \`osx-x64\` = Intel), drag Prism to Applications, then run this once in Terminal (the build isn't notarized yet):"
+            echo
+            echo '  ```bash'
+            echo '  xattr -dr com.apple.quarantine /Applications/Prism.app'
+            echo '  ```'
+            echo "- **Windows**: \`Prism-$VERSION-win-x64-setup.exe\` (or \`win-arm64\`). SmartScreen may warn: choose More info → Run anyway."
+            echo "- **Linux**: the \`.AppImage\` for your architecture (\`linux-x64\` or \`linux-arm64\`), then \`chmod +x\` it — or install the \`.deb\`."
+            echo
+            echo "Hardware acceleration (Core ML) is available on Macs; Windows and Linux separate on the CPU."
+            echo
+            printf '%s\n' "$notes"
+          } > notes.md
+
+      - name: Publish
+        shell: bash
+        run: |
+          pre=""; [[ "$PRERELEASE" == "true" ]] && pre="--prerelease"
+          gh release create "$TAG" artifacts/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Prism $VERSION" --notes-file notes.md $pre
+          echo "Published ${{ github.server_url }}/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

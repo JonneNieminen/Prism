@@ -17,6 +17,7 @@ export function LibraryView() {
   const go = useApp((s) => s.go);
   const toast = useApp((s) => s.toast);
   const current = useApp((s) => s.project);
+  const retention = useApp((s) => s.settings?.libraryRetentionDays ?? 0);
   const [size, setSize] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<"all" | Project | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -48,9 +49,17 @@ export function LibraryView() {
       <PageHeader
         title="Library"
         subtitle={
-          projects.length
-            ? `${projects.length} separated ${projects.length === 1 ? "song" : "songs"}${size != null ? ` · ${formatBytes(size)} on disk` : ""} — reopen instantly, no reprocessing.`
-            : undefined
+          <>
+            {projects.length > 0 &&
+              `${projects.length} separated ${projects.length === 1 ? "song" : "songs"}${size != null ? ` · ${formatBytes(size)} on disk` : ""} — reopen instantly, no reprocessing. `}
+            {retention > 0 ? (
+              <button className="text-accent hover:underline" onClick={() => go("settings")} data-tip="Change how long songs are kept" data-shortcut="goSettings">
+                Songs are deleted after {retention === 1 ? "1 day" : `${retention} days`}.
+              </button>
+            ) : (
+              "Songs are kept until you delete them."
+            )}
+          </>
         }
         right={
           projects.length > 0 && (

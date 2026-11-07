@@ -1,16 +1,16 @@
-import { AudioLines, Boxes, Download, Gauge, Library, LifeBuoy, ShieldCheck, Sparkles, Wrench } from "lucide-react";
+import { AudioLines, Boxes, Download, Flag, Gauge, Library, LifeBuoy, ShieldCheck, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button, Card, Kbd, PageHeader, cx } from "../../components/ui";
 import { useApp } from "../../store/app";
 
-type Section = { id: string; icon: typeof Sparkles; title: string; body: ReactNode };
+type Section = { id: string; icon: typeof Flag; title: string; body: ReactNode };
 
 const K = ({ k }: { k: string }) => <Kbd>{k}</Kbd>;
 
 const SECTIONS: Section[] = [
   {
     id: "start",
-    icon: Sparkles,
+    icon: Flag,
     title: "Getting started",
     body: (
       <ol className="list-decimal space-y-1.5 pl-5">
@@ -48,14 +48,15 @@ const SECTIONS: Section[] = [
     body: (
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
-          Every stem plays in sync. <b>M</b> mutes a stem, <b>S</b> solos it (solo wins over mute, like a mixing desk). Drag a stem's slider to change its
+          Every stem plays in sync. Click a stem's name or its colored dot to mute it — <K k="⇧" />-click to mute or unmute a range of stems.{" "}
+          <b>S</b> solos a stem (solo wins over mute, like a mixing desk). Drag a stem's slider to change its
           volume; double-click the slider to reset it.
         </li>
         <li>
           <b>Karaoke</b> removes the vocals, <b>A cappella</b> leaves only the vocals, <b>Reset</b> turns everything back on.
         </li>
         <li>
-          Click anywhere in a waveform to jump there. <K k="Space" /> plays and pauses, <K k="←" /> <K k="→" /> skip 5 seconds and the number keys mute
+          Click a waveform to jump there, or drag to scrub. <K k="Space" /> plays and pauses, <K k="←" /> <K k="→" /> skip 5 seconds and the number keys mute
           stems 1–9 (hold <K k="⇧" /> to solo).
         </li>
       </ul>
@@ -68,7 +69,7 @@ const SECTIONS: Section[] = [
     body: (
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
-          <b>Current mix</b> saves exactly what you hear as one file (<K k="⌘" /> <K k="E" />). <b>All stems</b> saves a .zip with one file per stem (
+          <b>Current mix</b> saves exactly what you hear as one file (<K k="⌘" /> <K k="E" />). <b>Download all stems</b> saves a .zip with one file per stem (
           <K k="⇧" /> <K k="⌘" /> <K k="E" />). The download button on a stem saves just that stem.
         </li>
         <li>
@@ -84,8 +85,9 @@ const SECTIONS: Section[] = [
     title: "Library",
     body: (
       <p>
-        Every separation is kept in the Library, so reopening a song is instant — no reprocessing. Each entry remembers which model made it. Rename or delete
-        entries there; clear everything from Settings → Storage. Your original song files are never changed or copied.
+        Separations are kept in the Library, so reopening a song is instant — no reprocessing. Each entry remembers which model made it. To save disk
+        space, songs are deleted automatically after 7 days; change that (or choose Never) in Settings → Storage → Delete old songs. Rename or delete
+        entries in the Library. Your original song files are never changed or copied.
       </p>
     ),
   },

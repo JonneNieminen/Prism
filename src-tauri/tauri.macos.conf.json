@@ -1,0 +1,9 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "resources": {
+      "../models/htdemucs/": "models/htdemucs/",
+      "icons/Assets.car": "Assets.car"
+    }
+  }
+}

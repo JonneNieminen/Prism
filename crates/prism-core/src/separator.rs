@@ -68,7 +68,7 @@ pub fn check_memory(manifest: &ModelManifest, frames: usize) -> Result<()> {
     let stems = manifest.stems.len() as u64;
     let ch = manifest.channels as u64;
     let need = frames as u64 * ch * 4 * (stems * 2 + 4) + 1_500_000_000;
-    let mut sys = sysinfo::System::new();
+    let Ok(mut sys) = sysinfo::System::new() else { return Ok(()) };
     sys.refresh_memory();
     let avail = sys.available_memory().max(sys.free_memory());
     if avail > 0 && need > avail.saturating_add(sys.total_memory() / 4) {

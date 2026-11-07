@@ -61,6 +61,21 @@ files = {
         ),
     ),
 }
+# Icon Composer bundle for macOS 26+ (flat: solid fill, no shadow, no translucency).
+# render-icons.sh rasterises mark.svg → Assets/mark.png and compiles it with actool.
+TILE_RGB = tuple(int(TILE[i : i + 2], 16) / 255 for i in (1, 3, 5))
+icon_json = {
+    "fill": {"solid": "srgb:" + ",".join(f"{c:.5f}" for c in TILE_RGB) + ",1.00000"},
+    "groups": [{"layers": [{"image-name": "mark.png", "name": "mark"}],
+                "shadow": {"kind": "none", "opacity": 0},
+                "translucency": {"enabled": False, "value": 0}}],
+    "supported-platforms": {"squares": ["macOS"]},
+}
+import json
+(HERE / "Prism.icon/Assets").mkdir(parents=True, exist_ok=True)
+(HERE / "Prism.icon/icon.json").write_text(json.dumps(icon_json, indent=2) + "\n")
+files[HERE / "mark.svg"] = svg(dark)
+
 files[ROOT / "docs/logo.svg"] = files[HERE / "prism-icon.svg"]
 files[ROOT / "public/favicon.svg"] = files[HERE / "prism-icon.svg"]
 for p, s in files.items():

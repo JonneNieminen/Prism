@@ -10,19 +10,28 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 ts-rs.workspace = true
-symphonia = { version = "0.5.5", default-features = false, features = ["mp3", "aac", "isomp4", "flac", "vorbis", "ogg", "wav", "pcm", "alac", "adpcm"] }
-rubato = "0.16.2"
+symphonia = { version = "0.6.1", default-features = false, features = ["mp3", "aac", "isomp4", "flac", "vorbis", "ogg", "wav", "pcm", "alac", "adpcm"] }
+rubato = "5.0.1"
 realfft = "3.5.1"
 hound = "3.5.1"
 flacenc = "0.5.1"
 mp3lame-encoder = { version = "0.3.0", default-features = false }
-zip = { version = "2.4.2", default-features = false, features = ["deflate"] }
-sha2 = "0.10.9"
+zip = { version = "9.4.1", default-features = false, features = ["deflate"] }
+sha2 = "0.11.1"
 hex = "0.4.3"
 uuid = { version = "1.29.1", features = ["v4"] }
-ort = { version = "2.0.0-rc.15", default-features = false, features = ["std", "download-binaries", "tls-rustls", "coreml", "api-31"] }
+ort = { version = "2.0.0-rc.15", default-features = false, features = ["std", "download-binaries", "tls-rustls", "api-23"] }
 ureq = "3.1.4"
-sysinfo = { version = "0.37.2", default-features = false, features = ["system"] }
+sysinfo = { version = "0.40.1", default-features = false, features = ["system"] }
+
+# Execution providers per platform. ONNX Runtime ships no Intel-Mac build after 1.23, so
+# Intel Macs load a bundled libonnxruntime.dylib (1.23.2) at runtime instead of linking.
+[target.'cfg(all(target_os = "macos", target_arch = "aarch64"))'.dependencies]
+ort = { version = "2.0.0-rc.15", default-features = false, features = ["coreml"] }
+[target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies]
+ort = { version = "2.0.0-rc.15", default-features = false, features = ["coreml", "load-dynamic"] }
+[target.'cfg(windows)'.dependencies]
+ort = { version = "2.0.0-rc.15", default-features = false, features = ["directml"] }
 
 [dev-dependencies]
 tempfile = "3"

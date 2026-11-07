@@ -1,88 +1,89 @@
+# Build: checks, tests on every platform, then installers for every platform Prism supports
+# (via package.yml, stamped 0.0.1-ci.<run> so CI builds never look like a real release).
+# Runs on pushes to main, on pull requests and on demand. Dependabot's PRs run the full matrix
+# like any other PR; "Build result" is the single check to require before merging.
+# Needs no secrets, because Dependabot PRs can't read repository secrets.
 name: Build
 
 on:
   push:
     branches: [main]
+    paths-ignore: ["**.md"]
   pull_request:
+    paths-ignore: ["**.md"]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   checks:
-    name: Checks & tests
-    runs-on: macos-15
+    name: Checks
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: npm
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Cache model weights
-        uses: actions/cache@v6
-        with:
-          path: models/**/*.onnx
-          key: models-${{ hashFiles('models/**/model.json') }}
-
-      - run: npm ci
-      - name: Fetch bundled model (SHA-256 verified)
-        run: npm run fetch-models
+          rust-components: rustfmt
       - name: Typecheck & build UI
         run: npm run build
       - name: rustfmt
         run: cargo fmt --all --check
-      - name: clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Tests (unit + end-to-end separation)
-        run: cargo test --workspace
       - name: Generated TypeScript bindings are committed
-        run: git diff --exit-code src/bindings
+        run: |
+          cargo test -p prism-core --lib -q
+          git diff --exit-code src/bindings
 
-  app:
-    name: macOS app bundle
+  test:
+    name: Test (${{ matrix.rid }})
     needs: checks
-    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-26,            rid: osx-arm64 }
+          - { os: macos-26-intel,      rid: osx-x64 }
+          - { os: windows-2025-vs2026, rid: win-x64 }
+          - { os: windows-11-arm,      rid: win-arm64 }
+          - { os: ubuntu-26.04,        rid: linux-x64 }
+          - { os: ubuntu-26.04-arm,    rid: linux-arm64 }
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
+      - uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: npm
+          rust-components: clippy
+      - run: npm run build
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests (unit + end-to-end separation on this platform)
+        run: cargo test --workspace
 
-      - uses: dtolnay/rust-toolchain@stable
+  desktop:
+    name: Desktop
+    needs: test
+    uses: ./.github/workflows/package.yml
+    with:
+      version: 0.0.1-ci.${{ github.run_number }}
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: release
-
-      - name: Cache model weights
-        uses: actions/cache@v6
-        with:
-          path: models/**/*.onnx
-          key: models-${{ hashFiles('models/**/model.json') }}
-
-      - run: npm ci
-      - run: npm run fetch-models
-      - name: Build Prism.app and .dmg (unsigned)
-        run: npx tauri build
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: Prism-macOS-arm64-dmg
-          path: target/release/bundle/dmg/*.dmg
-          if-no-files-found: error
-          retention-days: 30
+  # One required check for branch protection and Dependabot PRs: green only when the checks,
+  # every platform's tests and every installer succeeded.
+  result:
+    name: Build result
+    if: always()
+    needs: [checks, test, desktop]
+    runs-on: ubuntu-26.04
+    steps:
+      - name: All builds succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for r in $RESULTS; do [[ "$r" == "success" ]] || { echo "::error::A build job did not succeed ($r)."; exit 1; }; done

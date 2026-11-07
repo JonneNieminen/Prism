@@ -1,73 +1,94 @@
 import { motion, useReducedMotion } from "motion/react";
 import { stemColor } from "../../lib/colors";
 
-/** A white waveform enters the prism and leaves as coloured lanes (flat style). */
-export function Refraction({ stems, progress, active = true, height = 200 }: { stems: { id: string; color?: string | null }[]; progress: number; active?: boolean; height?: number }) {
+/**
+ * The processing animation, drawn like the Prism mark ("Bend"): white light falls, bends and
+ * fans out into one lane per stem. Lanes draw out with progress; light keeps flowing through.
+ */
+export function Refraction({
+  stems,
+  progress,
+  active = true,
+}: {
+  stems: { id: string; color?: string | null }[];
+  progress: number;
+  active?: boolean;
+}) {
   const reduce = useReducedMotion();
-  const W = 760;
-  const H = height;
-  const cy = H / 2;
-  const px = W * 0.4;
-  const n = Math.max(1, stems.length);
-  const spread = Math.min(30, (H - 40) / n);
-  const lanes = stems.map((s, i) => ({ ...s, y: cy + (i - (n - 1) / 2) * spread }));
-  const wave = Array.from({ length: 60 }, (_, i) => {
-    const x = (i / 59) * (px - 48);
-    const y = cy + Math.sin(i * 0.9) * (5 + 5 * Math.sin(i * 0.23)) * (i / 59);
-    return `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(" ");
   const flow = active && !reduce;
+  const n = Math.max(1, stems.length);
+  const W = 760;
+  const bx = 190; // beam x
+  const top = 14;
+  const bend = 74; // where the beam meets the lanes
+  const gap = Math.min(22, 120 / n);
+  const r0 = 22;
+  const lanes = stems.map((s, i) => {
+    const r = r0 + i * gap;
+    const y = bend + r;
+    return { ...s, r, y, d: `M${bx} ${bend}A${r} ${r} 0 0 0 ${bx + r} ${y}H${W - 24}` };
+  });
+  const H = bend + r0 + (n - 1) * gap + 22;
+  const done = progress >= 0.999;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: H }} role="img" aria-label="Separating the song into stems">
-      <path d={wave} stroke="var(--text)" strokeOpacity={0.75} strokeWidth={2} fill="none" strokeLinecap="round" />
-      {flow && (
-        <motion.path
-          d={wave}
-          stroke="var(--text)"
-          strokeWidth={2.4}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray="8 72"
-          animate={{ strokeDashoffset: [0, -80] }}
-          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-        />
-      )}
-      {lanes.map((l, i) => {
+      {/* lanes, outer first so inner lanes sit on top where they peel off the beam */}
+      {[...lanes].reverse().map((l) => {
+        const i = lanes.indexOf(l);
         const c = stemColor(l.id, l.color);
-        const d = `M${px + 28} ${cy} C ${px + 105} ${cy}, ${px + 115} ${l.y}, ${px + 190} ${l.y} L ${W - 10} ${l.y}`;
         return (
           <g key={l.id}>
-            <path d={d} stroke={c} strokeOpacity={0.18} strokeWidth={2.2} fill="none" strokeLinecap="round" />
+            <path d={l.d} fill="none" stroke={c} strokeOpacity={0.16} strokeWidth={7} strokeLinecap="round" />
             <motion.path
-              d={d}
-              stroke={c}
-              strokeWidth={2.2}
+              d={l.d}
               fill="none"
+              stroke={c}
+              strokeWidth={7}
               strokeLinecap="round"
               initial={{ pathLength: 0 }}
-              animate={{ pathLength: Math.max(0.02, progress) }}
+              animate={{ pathLength: Math.max(0.015, progress) }}
               transition={{ type: "tween", ease: "easeOut", duration: 0.5, delay: i * 0.04 }}
             />
-            {flow && progress > 0.02 && (
+            {flow && progress > 0.03 && !done && (
               <motion.path
-                d={d}
-                stroke={c}
-                strokeWidth={2.8}
+                d={l.d}
                 fill="none"
+                stroke="var(--text)"
+                strokeOpacity={0.55}
+                strokeWidth={3}
                 strokeLinecap="round"
-                strokeDasharray="5 95"
-                animate={{ strokeDashoffset: [0, -100] }}
-                transition={{ duration: 1.3 + i * 0.12, repeat: Infinity, ease: "linear" }}
+                strokeDasharray="3 120"
+                animate={{ strokeDashoffset: [0, -123] }}
+                transition={{ duration: 1.6 + i * 0.14, repeat: Infinity, ease: "linear" }}
               />
             )}
+            <motion.circle
+              cx={W - 24}
+              cy={l.y}
+              r={6}
+              fill={c}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={done ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 22, delay: i * 0.05 }}
+            />
           </g>
         );
       })}
-      <path
-        d={`M${px - 3} ${cy - 50} Q ${px} ${cy - 54} ${px + 3} ${cy - 50} L ${px + 45} ${cy + 30} Q ${px + 47} ${cy + 34} ${px + 42} ${cy + 34} L ${px - 42} ${cy + 34} Q ${px - 47} ${cy + 34} ${px - 45} ${cy + 30} Z`}
-        fill="var(--accent)"
-      />
+      {/* the white beam */}
+      <path d={`M${bx} ${top}V${bend - 8}`} stroke="var(--text)" strokeWidth={11} strokeLinecap="round" />
+      {flow && (
+        <motion.path
+          d={`M${bx} ${top}V${bend - 8}`}
+          stroke="var(--bg)"
+          strokeOpacity={0.35}
+          strokeWidth={4}
+          strokeLinecap="round"
+          strokeDasharray="4 22"
+          animate={{ strokeDashoffset: [0, -26] }}
+          transition={{ duration: 0.7, repeat: Infinity, ease: "linear" }}
+        />
+      )}
     </svg>
   );
 }

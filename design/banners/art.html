@@ -1,0 +1,134 @@
+<!doctype html>
+<!--
+  Repo imagery for Prism, rendered to PNG by design/banners/render.sh (headless Chrome).
+  ?art=hero|social|separate|mix|export|private  &theme=dark|light
+-->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: #15162b; --bg2: #1d1f3d; --text: #f4efe2; --muted: #a3a6c8; --faint: #6f7298; --card: #23264a; --line: rgba(255,255,255,.08);
+    --accent: #a3a8f0; --vocals: #e48aa0; --drums: #ddb06a; --bass: #9d92e4; --other: #a9c77e; --guitar: #72c2b4; --piano: #7eaedf;
+    --tile: #1f2144;
+  }
+  [data-theme="light"] {
+    --bg: #f5f5f8; --bg2: #ececf3; --text: #1d1f3d; --muted: #5d6080; --faint: #9a9cb5; --card: #ffffff; --line: rgba(20,20,60,.08);
+    --accent: #5a60c8; --vocals: #c95f78; --drums: #b8862f; --bass: #7166c4; --other: #789a46; --guitar: #3e9a8b; --piano: #4b82bd;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  .art { position: relative; overflow: hidden; background: var(--bg); }
+  .wm { font-weight: 600; letter-spacing: -0.035em; line-height: 1; }
+  .i { position: relative; display: inline-block; line-height: 1; }
+  .i b { position: absolute; left: 50%; top: 0.115em; width: 0.19em; height: 0.19em; border-radius: 50%; background: var(--accent); transform: translateX(-50%); }
+  .tag { color: var(--muted); letter-spacing: -0.01em; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); color: var(--muted); font-size: 15px; font-weight: 500; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-title { font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+  .card-sub { margin-top: 10px; font-size: 18px; color: var(--muted); line-height: 1.45; max-width: 460px; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const art = q.get("art") || "hero";
+document.documentElement.dataset.theme = q.get("theme") || "dark";
+const C = (n) => `var(--${n})`;
+const LANES = ["vocals", "drums", "bass"];
+
+// The Prism mark ("Bend"), 64-grid, as used in design/logo.
+function mark(size, beam = C("text")) {
+  const lane = (d, y, c) => `<path d="${d}" fill="none" stroke="${c}" stroke-width="4.5" stroke-linecap="round"/><circle cx="49" cy="${y}" r="3" fill="${c}"/>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 64 64">
+    ${lane("M15 33A18 18 0 0 0 33 51H49", 51, C("bass"))}
+    ${lane("M15 33A12 12 0 0 0 27 45H49", 45, C("drums"))}
+    ${lane("M15 33A6 6 0 0 0 21 39H49", 39, C("vocals"))}
+    <path d="M15 14V28" stroke="${beam}" stroke-width="7" stroke-linecap="round"/></svg>`;
+}
+function appIcon(size) {
+  return `<div style="width:${size}px;height:${size}px;border-radius:${size * 0.225}px;background:var(--tile);box-shadow:0 ${size * 0.06}px ${size * 0.16}px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center">
+    ${mark(size, "#F4EFE2").replace(/var\(--vocals\)/g, "#E48AA0").replace(/var\(--drums\)/g, "#DDB06A").replace(/var\(--bass\)/g, "#9D92E4")}</div>`;
+}
+const wordmark = (px) => `<span class="wm" style="font-size:${px}px">pr<span class="i">ı<b></b></span>sm</span>`;
+
+// Decorative lanes leaving the right side of an element at (x, y), fanning to evenly spaced rows.
+function lanes(w, h, x0, y0, rows, spacing, stroke = 7, opacity = 1, colors = ["vocals", "drums", "bass", "other", "piano", "guitar"]) {
+  let s = "";
+  for (let i = 0; i < rows; i++) {
+    const y = y0 + (i - (rows - 1) / 2) * spacing;
+    const c = C(colors[i % colors.length]);
+    const mid = x0 + 110;
+    s += `<path d="M${x0} ${y0} C ${mid} ${y0}, ${mid} ${y}, ${x0 + 220} ${y} H ${w + 40}" fill="none" stroke="${c}" stroke-opacity="${opacity}" stroke-width="${stroke}" stroke-linecap="round"/>`;
+  }
+  return `<svg width="${w}" height="${h}" style="position:absolute;inset:0">${s}</svg>`;
+}
+
+function waveform(w, h, color, seed, gaps = false) {
+  let r = seed * 9301 + 49297, bars = "";
+  const n = Math.floor(w / 6);
+  for (let i = 0; i < n; i++) {
+    r = (r * 9301 + 49297) % 233280;
+    const env = 0.45 + 0.4 * Math.sin(i / 11 + seed) ** 2;
+    let v = env * (0.55 + 0.45 * (r / 233280));
+    if (gaps && Math.sin(i / 7 + seed) < -0.4) v = 0.05;
+    const bh = Math.max(3, v * h);
+    bars += `<rect x="${i * 6}" y="${(h - bh) / 2}" width="3.2" height="${bh}" rx="1.6" fill="${color}"/>`;
+  }
+  return `<svg width="${w}" height="${h}">${bars}</svg>`;
+}
+
+const root = document.getElementById("root");
+if (art === "hero" || art === "social") {
+  const W = 1280, H = art === "hero" ? 440 : 640;
+  root.innerHTML = `<div class="art" style="width:${W}px;height:${H}px">
+    ${lanes(W, H, 930, H / 2, 6, art === "hero" ? 38 : 52, 9, 0.9)}
+    <div style="position:absolute;left:96px;top:0;bottom:0;display:flex;align-items:center;gap:44px">
+      ${appIcon(art === "hero" ? 208 : 248)}
+      <div>
+        ${wordmark(art === "hero" ? 112 : 132)}
+        <div class="tag" style="margin-top:22px;font-size:${art === "hero" ? 24 : 30}px;max-width:${art === "hero" ? 470 : 600}px">Split any song into its stems with local AI — private, offline, open source.</div>
+        <div style="margin-top:26px;display:flex;gap:10px">${["Vocals", "Drums", "Bass", "Other"].map((l, i) => `<span class="pill"><span class="dot" style="background:${C(["vocals", "drums", "bass", "other"][i])}"></span>${l}</span>`).join("")}</div>
+      </div>
+    </div>
+    <div style="position:absolute;right:0;top:0;bottom:0;width:120px;background:linear-gradient(90deg,transparent,var(--bg))"></div>
+  </div>`;
+} else {
+  const W = 640, H = 400;
+  const body = {
+    separate: {
+      title: "Separate", sub: "Vocals, drums, bass and more from any MP3, WAV, FLAC, M4A or OGG — with Demucs, bundled.",
+      art: `<div style="position:absolute;left:40px;right:0;bottom:30px;height:170px">${(() => {
+        const ys = [44, 80, 116, 152], x0 = 70, top = 0;
+        let s = `<path d="M${x0} ${top}V30" stroke="${C("text")}" stroke-width="12" stroke-linecap="round"/>`;
+        ys.forEach((y, i) => { const r = y - 30; s = `<path d="M${x0} 30A${r} ${r} 0 0 0 ${x0 + r} ${y}H${W}" fill="none" stroke="${C(["vocals", "drums", "bass", "other"][i])}" stroke-width="10" stroke-linecap="round"/>` + s; });
+        return `<svg width="${W}" height="170">${s}</svg>`; })()}</div>` },
+    mix: {
+      title: "Mix live", sub: "Mute, solo and balance every stem in sync. One click for karaoke or a cappella.",
+      art: `<div style="position:absolute;left:40px;right:40px;bottom:34px;display:flex;flex-direction:column;gap:10px">${["vocals", "drums", "bass"].map((s, i) => `
+        <div style="display:flex;align-items:center;gap:14px;height:46px;padding:0 14px;border-radius:12px;background:var(--card);border:1px solid var(--line)">
+          <span style="width:64px;font-size:15px;font-weight:600;${i === 0 ? "color:var(--faint)" : ""}">${s[0].toUpperCase() + s.slice(1)}</span>
+          <span style="opacity:${i === 0 ? 0.3 : 1}">${waveform(380, 30, C(s), i + 2, s === "vocals")}</span>
+          <span style="margin-left:auto;width:16px;height:16px;border-radius:50%;border:2.5px solid ${C(s)};background:${i === 0 ? "transparent" : C(s)}"></span>
+        </div>`).join("")}</div>` },
+    export: {
+      title: "Export anything", sub: "A single stem, all stems as a .zip, or exactly the mix you hear. WAV, FLAC or MP3.",
+      art: `<div style="position:absolute;left:40px;right:40px;bottom:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${[["vocals", "Song – vocals", "WAV"], ["drums", "Song – no vocals", "FLAC"], ["bass", "Song – stems", "ZIP"]].map(([c, n, f]) => `
+        <div style="height:132px;border-radius:14px;background:var(--card);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+          <span style="width:30px;height:30px;border-radius:8px;background:${C(c)};opacity:.9"></span>
+          <div><div style="font-size:14px;font-weight:600">${n}</div><div style="margin-top:4px;font-size:13px;color:var(--muted)">.${f.toLowerCase()} · ${f}</div></div>
+        </div>`).join("")}</div>` },
+    private: {
+      title: "Private by design", sub: "Runs entirely on your computer. No uploads, no accounts — models are checksum-verified ONNX.",
+      art: `<div style="position:absolute;left:40px;right:40px;bottom:40px;display:flex;gap:12px;flex-wrap:wrap">${["On-device AI", "Works offline", "No accounts", "SHA-256 verified", "Open source", "Core ML on Mac"].map((t) => `<span class="pill" style="height:40px;font-size:16px"><span class="dot" style="background:var(--accent)"></span>${t}</span>`).join("")}</div>` },
+  }[art];
+  root.innerHTML = `<div class="art" style="width:${W}px;height:${H}px;background:var(--bg2);border-radius:0">
+    <div style="position:absolute;left:40px;top:40px;right:40px"><div class="card-title">${body.title}</div><div class="card-sub">${body.sub}</div></div>
+    ${body.art}
+  </div>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+# Package: builds Prism's installers for every platform at a given version. Called by Build
+# (CI versions) and Release (real versions). Installers are named Prism-<version>-<rid>.<ext>.
+name: Package
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Version stamped into the app (SemVer).
+        type: string
+        required: true
+      retention-days:
+        type: number
+        default: 14
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  desktop:
+    name: ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-26,            rid: osx-arm64,   bundles: app }
+          - { os: macos-26-intel,      rid: osx-x64,     bundles: app }
+          - { os: windows-2025-vs2026, rid: win-x64,     bundles: nsis }
+          - { os: windows-11-arm,      rid: win-arm64,   bundles: nsis }
+          - { os: ubuntu-26.04,        rid: linux-x64,   bundles: "appimage,deb" }
+          - { os: ubuntu-26.04-arm,    rid: linux-arm64, bundles: "appimage,deb" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          cache-key: release
+
+      - name: Build (${{ matrix.bundles }})
+        shell: bash
+        run: |
+          config="{\"version\":\"$VERSION\"}"
+          # Intel Macs ship the ONNX Runtime dylib inside the bundle.
+          if [[ -n "${ORT_DYLIB_PATH:-}" ]]; then
+            config="{\"version\":\"$VERSION\",\"bundle\":{\"resources\":{\"$ORT_DYLIB_PATH\":\"libonnxruntime.dylib\"}}}"
+          fi
+          npx tauri build --ci --bundles ${{ matrix.bundles }} --config "$config"
+
+      # macOS: drag-to-install DMG with "READ ME FIRST.txt", plus a render of the icon as macOS
+      # shows it (Icon Composer icon from Assets.car, so no grey plate on macOS 26+).
+      - name: Make DMG
+        if: runner.os == 'macOS'
+        run: build/macos/make-dmg.sh target/release/bundle/macos/Prism.app "$VERSION" ${{ matrix.rid }} dist
+      - name: Render icon preview
+        if: runner.os == 'macOS'
+        run: swift build/macos/render-icon.swift "$PWD/target/release/bundle/macos/Prism.app" icon-preview-${{ matrix.rid }}.png
+      - name: Upload icon preview
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          name: icon-preview-${{ matrix.rid }}
+          path: icon-preview-${{ matrix.rid }}.png
+          retention-days: ${{ inputs.retention-days }}
+
+      - name: Collect installers
+        if: runner.os != 'macOS'
+        shell: bash
+        run: |
+          mkdir -p dist
+          shopt -s globstar nullglob
+          for f in target/release/bundle/nsis/*-setup.exe; do cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}-setup.exe"; done
+          for f in target/release/bundle/appimage/*.AppImage; do cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.AppImage"; done
+          for f in target/release/bundle/deb/*.deb; do cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.deb"; done
+          ls -la dist
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: Prism-${{ matrix.rid }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: ${{ inputs.retention-days }}
