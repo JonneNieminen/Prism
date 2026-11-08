@@ -73,16 +73,16 @@ jobs:
       # shows it (Icon Composer icon from Assets.car, so no grey plate on macOS 26+).
       - name: Make DMG
         if: runner.os == 'macOS'
-        run: build/macos/make-dmg.sh target/release/bundle/macos/Prism.app "$VERSION" ${{ matrix.rid }} dist
+        run: build/macos/make-dmg.sh target/release/bundle/macos/Prism.app "$VERSION" ${{ matrix.rid }} installers
       # Updater files (only when the build was signed): Prism.app.tar.gz and its signature.
       - name: Collect updater files
         if: runner.os == 'macOS'
         run: |
-          mkdir -p dist
+          mkdir -p installers
           for f in target/release/bundle/macos/*.app.tar.gz; do
             [[ -f "$f" ]] || continue
-            cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.app.tar.gz"
-            cp "$f.sig" "dist/Prism-$VERSION-${{ matrix.rid }}.app.tar.gz.sig"
+            cp "$f" "installers/Prism-$VERSION-${{ matrix.rid }}.app.tar.gz"
+            cp "$f.sig" "installers/Prism-$VERSION-${{ matrix.rid }}.app.tar.gz.sig"
           done
       - name: Render icon preview
         if: runner.os == 'macOS'
@@ -95,27 +95,29 @@ jobs:
           path: icon-preview-${{ matrix.rid }}.png
           retention-days: ${{ inputs.retention-days }}
 
+      # Not dist/: Vite builds the web UI there (frontendDist), and its assets/ folder would end
+      # up in the artifact, which `gh release create` can't upload.
       - name: Collect installers
         if: runner.os != 'macOS'
         shell: bash
         run: |
-          mkdir -p dist
+          mkdir -p installers
           shopt -s globstar nullglob
           for f in target/release/bundle/nsis/*-setup.exe; do
-            cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}-setup.exe"
-            [[ -f "$f.sig" ]] && cp "$f.sig" "dist/Prism-$VERSION-${{ matrix.rid }}-setup.exe.sig"
+            cp "$f" "installers/Prism-$VERSION-${{ matrix.rid }}-setup.exe"
+            [[ -f "$f.sig" ]] && cp "$f.sig" "installers/Prism-$VERSION-${{ matrix.rid }}-setup.exe.sig"
           done
           for f in target/release/bundle/appimage/*.AppImage; do
-            cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.AppImage"
-            [[ -f "$f.sig" ]] && cp "$f.sig" "dist/Prism-$VERSION-${{ matrix.rid }}.AppImage.sig"
+            cp "$f" "installers/Prism-$VERSION-${{ matrix.rid }}.AppImage"
+            [[ -f "$f.sig" ]] && cp "$f.sig" "installers/Prism-$VERSION-${{ matrix.rid }}.AppImage.sig"
           done
-          for f in target/release/bundle/deb/*.deb; do cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.deb"; done
-          ls -la dist
+          for f in target/release/bundle/deb/*.deb; do cp "$f" "installers/Prism-$VERSION-${{ matrix.rid }}.deb"; done
+          ls -la installers
 
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:
           name: Prism-${{ matrix.rid }}
-          path: dist/*
+          path: installers/*
           if-no-files-found: error
           retention-days: ${{ inputs.retention-days }}

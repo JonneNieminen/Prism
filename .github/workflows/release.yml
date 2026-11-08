@@ -159,6 +159,9 @@ jobs:
         shell: bash
         run: |
           pre=""; [[ "$PRERELEASE" == "true" ]] && pre="--prerelease"
-          gh release create "$TAG" artifacts/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+          # Files only: a stray folder in an artifact would make the whole upload fail.
+          mapfile -t files < <(find artifacts -maxdepth 1 -type f | sort)
+          printf 'Uploading %s\n' "${files[@]}"
+          gh release create "$TAG" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
             --title "Prism $VERSION" --notes-file notes.md $pre
           echo "Published ${{ github.server_url }}/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

@@ -10,3 +10,4 @@ tools/export/.venv/
 tools/export/out/
 .DS_Store
 *.log
+installers/
