@@ -1,13 +1,15 @@
-import { motion, useReducedMotion } from "motion/react";
+import { tr } from "../i18n";
 import { stemColor } from "../lib/colors";
 
 /**
- * The "working" spinner: one arc per stem in its own colour, slowly turning around a calm
- * core, with a thin accent arc counter-rotating inside. Flat, no glow. Holds still (arcs
- * only) when the user prefers reduced motion.
+ * The "working" spinner: one arc per stem in its own colour, turning around a calm core, with a
+ * thin accent arc counter-rotating inside. Flat, no glow.
+ *
+ * Drawn with SVG's built-in animation (SMIL) rather than CSS or a JS animation library, so it
+ * keeps turning in every webview and never depends on transform-origin quirks. A spinner is
+ * essential feedback, so it keeps going even when the system asks for reduced motion.
  */
 export function StemSpinner({ stems, size = 96 }: { stems: { id: string; color?: string | null }[]; size?: number }) {
-  const reduce = useReducedMotion();
   const n = Math.max(1, stems.length);
   const R = 38;
   const C = 2 * Math.PI * R;
@@ -17,9 +19,10 @@ export function StemSpinner({ stems, size = 96 }: { stems: { id: string; color?:
   const c2 = 2 * Math.PI * r2;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="Working" className="mx-auto block">
+    <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={tr("Working")} className="mx-auto block">
       <circle cx="50" cy="50" r={R} fill="none" stroke="var(--pressed)" strokeWidth="6" />
-      <motion.g animate={reduce ? undefined : { rotate: 360 }} transition={{ repeat: Infinity, duration: 3.2, ease: "linear" }}>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="3.2s" repeatCount="indefinite" />
         {stems.map((s, i) => (
           <circle
             key={s.id}
@@ -34,20 +37,16 @@ export function StemSpinner({ stems, size = 96 }: { stems: { id: string; color?:
             transform={`rotate(${(i * 360) / n - 90} 50 50)`}
           />
         ))}
-      </motion.g>
+      </g>
       <circle cx="50" cy="50" r={r2} fill="none" stroke="var(--border-strong)" strokeWidth="1.5" />
-      <motion.g animate={reduce ? undefined : { rotate: -360 }} transition={{ repeat: Infinity, duration: 1.8, ease: "linear" }}>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="360 50 50" to="0 50 50" dur="1.8s" repeatCount="indefinite" />
         <circle cx="50" cy="50" r={r2} fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={`${c2 * 0.22} ${c2}`} transform="rotate(-90 50 50)" />
-      </motion.g>
-      <motion.circle
-        cx="50"
-        cy="50"
-        r="6"
-        fill="var(--text)"
-        animate={reduce ? undefined : { scale: [0.85, 1.15, 0.85], opacity: [0.7, 1, 0.7] }}
-        transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
-        style={{ transformOrigin: "50px 50px" }}
-      />
+      </g>
+      <circle cx="50" cy="50" r="6" fill="var(--text)">
+        <animate attributeName="r" values="5;7;5" dur="1.8s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.7;1;0.7" dur="1.8s" repeatCount="indefinite" />
+      </circle>
     </svg>
   );
 }

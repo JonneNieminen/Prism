@@ -38,6 +38,9 @@ pub struct LoadStep {
     pub total: usize,
     /// The stem this network specialises in, when it has one.
     pub stem: Option<String>,
+    /// The weights file being loaded and its size in bytes.
+    pub file: String,
+    pub bytes: u64,
 }
 
 pub const CPU_LABEL: &str = "CPU";

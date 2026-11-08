@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import type { AppError, MusicInfo, Project, Quality, Settings } from "../bindings";
+import type { LogLine } from "../components/ActivityLog";
+import { tr } from "../i18n";
 import { backend, toAppError, type Analysis, type JobEvent, type Models, type OpenProject, type Probe, type Stage } from "../lib/ipc";
 
-export type View = "separate" | "player" | "library" | "models" | "analyze" | "settings" | "help" | "shortcuts";
+export type View = "separate" | "download" | "player" | "library" | "models" | "analyze" | "settings" | "help" | "shortcuts";
 
 export type ExportTarget = { kind: "mix" } | { kind: "zip" } | { kind: "stem"; stemId: string };
 
@@ -14,6 +16,8 @@ export type Job = {
   device: string | null;
   detail: string | null;
   note: string | null;
+  /** Every step Prism reported, for the activity log. */
+  log: LogLine[];
   startedAt: number;
   title: string;
   modelId: string;
@@ -87,6 +91,7 @@ type State = {
 };
 
 let toastId = 0;
+let logId = 0;
 
 export const useApp = create<State>((set, get) => ({
   view: "separate",
@@ -164,7 +169,7 @@ export const useApp = create<State>((set, get) => ({
       if ("libraryRetentionDays" in patch) await get().refreshProjects();
     } catch (e) {
       set({ settings: cur });
-      get().toast({ tone: "error", title: "Couldn't save settings", body: toAppError(e).message });
+      get().toast({ tone: "error", title: tr("Couldn't save settings"), body: toAppError(e).message });
     }
   },
 
@@ -204,7 +209,7 @@ export const useApp = create<State>((set, get) => ({
     const queued = rest.map((path) => ({ path, name: path.split(/[\\/]/).pop() ?? path }));
     if (queued.length) set({ queue: [...get().queue, ...queued] });
     if (first) void get().loadSource(first);
-    else if (queued.length) get().toast({ tone: "info", title: queued.length === 1 ? `“${queued[0].name}” is up next` : `${queued.length} songs added to the queue` });
+    else if (queued.length) get().toast({ tone: "info", title: queued.length === 1 ? tr("“{name}” is up next", { name: queued[0].name }) : tr("{n} songs added to the queue", { n: queued.length }) });
   },
 
   removeFromQueue: (path) => set({ queue: get().queue.filter((q) => q.path !== path) }),
@@ -216,11 +221,11 @@ export const useApp = create<State>((set, get) => ({
     set({ queue: get().queue.slice(1) });
     const run = get().lastRun ?? (get().settings ? { modelId: get().settings!.activeModelId, quality: get().settings!.quality } : null);
     const failed = (body: string) => {
-      get().toast({ tone: "error", title: `Couldn't separate “${next.name}”`, body });
+      get().toast({ tone: "error", title: tr("Couldn't separate “{name}”", { name: next.name }), body });
       set({ source: null, sourceError: null, jobError: null });
       void get().startNext();
     };
-    if (!run) return failed("Choose a model in Models first.");
+    if (!run) return failed(tr("Choose a model in Models first."));
     // Probe without switching views: the user may be listening to the song that just finished.
     set({ probing: next.path, sourceError: null, jobError: null });
     try {
@@ -253,6 +258,7 @@ export const useApp = create<State>((set, get) => ({
           device: null,
           detail: null,
           note: null,
+          log: [{ id: ++logId, t: 0, level: "info", text: tr("Starting a separation with {model}", { model: model?.manifest.name ?? modelId }) }],
           startedAt: Date.now(),
           title: source.probe.info.title,
           modelId,
@@ -265,9 +271,20 @@ export const useApp = create<State>((set, get) => ({
     }
   },
 
+  // Cancelling is instant here: tell the backend, and leave the job screen right away. The backend
+  // stops at its next safe point (a model compile can't be interrupted, so that can take a while)
+  // and its late events are ignored because they carry the old job's id.
   async cancelJob() {
     const job = get().job;
-    if (job) await (await backend()).cancelJob(job.id);
+    if (!job) return;
+    void backend().then((b) => b.cancelJob(job.id));
+    if (job.fromQueue || get().queue.length > 0) {
+      set({ job: null, source: null, jobError: null });
+      get().toast({ tone: "info", title: tr("Skipped “{title}”", { title: job.title }) });
+      void get().startNext();
+    } else {
+      set({ job: null, jobError: null });
+    }
   },
 
   async ensureMusic(project) {
@@ -289,7 +306,7 @@ export const useApp = create<State>((set, get) => ({
       const project = await (await backend()).openProject(id);
       set({ project, view: "player" });
     } catch (e) {
-      get().toast({ tone: "error", title: "Couldn't open project", body: toAppError(e).message });
+      get().toast({ tone: "error", title: tr("Couldn't open project"), body: toAppError(e).message });
       void get().refreshProjects();
     }
   },
@@ -311,6 +328,10 @@ function onJobEvent(e: JobEvent) {
     useApp.setState({
       job: { ...s.job, stage: e.stage, fraction: e.fraction, eta: e.etaSecs, device: e.device ?? s.job.device, detail: e.detail, note: e.note },
     });
+  } else if (e.kind === "log") {
+    // The activity log is its own stream of low-level events, separate from the step status.
+    const line = { id: ++logId, t: (Date.now() - s.job.startedAt) / 1000, level: e.level, text: e.text };
+    useApp.setState({ job: { ...s.job, log: [...s.job.log.slice(-199), line] } });
   } else if (e.kind === "done") {
     const job = s.job;
     useApp.setState({ job: null, source: null });
@@ -319,7 +340,7 @@ function onJobEvent(e: JobEvent) {
     if (e.project) {
       const id = e.project.id;
       // Open it, unless it ran in the background from the queue or more songs follow.
-      if (job.fromQueue || more) s.toast({ tone: "success", title: `“${job.title}” is ready`, action: { label: "Open", run: () => void useApp.getState().openProject(id) } });
+      if (job.fromQueue || more) s.toast({ tone: "success", title: tr("“{title}” is ready", { title: job.title }), action: { label: tr("Open"), run: () => void useApp.getState().openProject(id) } });
       else void s.openProject(id);
     }
     if (more) void useApp.getState().startNext();
@@ -330,11 +351,11 @@ function onJobEvent(e: JobEvent) {
     if (job.fromQueue || more) {
       // Keep going with the rest of the queue; report this one.
       useApp.setState({ job: null, source: null, jobError: null });
-      s.toast(cancelled ? { tone: "info", title: `Skipped “${job.title}”` } : { tone: "error", title: `Couldn't separate “${job.title}”`, body: e.error.message });
+      s.toast(cancelled ? { tone: "info", title: tr("Skipped “{title}”", { title: job.title }) } : { tone: "error", title: tr("Couldn't separate “{title}”", { title: job.title }), body: e.error.message });
       void useApp.getState().startNext();
       return;
     }
     useApp.setState({ job: null, jobError: cancelled ? null : e.error });
-    if (cancelled) s.toast({ tone: "info", title: "Separation cancelled" });
+    if (cancelled) s.toast({ tone: "info", title: tr("Separation cancelled") });
   }
 }

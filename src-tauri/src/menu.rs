@@ -3,12 +3,13 @@
 //! items (Edit, Minimize, Hide, Full Screen on macOS) are handled by the OS. Accelerators use
 //! `CmdOrCtrl`, so each platform shows and uses its own modifier.
 
+use prism_core::settings::Language;
 use tauri::menu::{AboutMetadata, Menu, MenuItemBuilder, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Runtime};
 
-pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
+pub fn build<R: Runtime>(app: &AppHandle<R>, lang: Language) -> tauri::Result<Menu<R>> {
     let item = |id: &str, text: &str, accel: Option<&str>| {
-        let mut b = MenuItemBuilder::with_id(id, text);
+        let mut b = MenuItemBuilder::with_id(id, tr(lang, text));
         if let Some(a) = accel {
             b = b.accelerator(a);
         }
@@ -18,14 +19,14 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let about = AboutMetadata {
         name: Some("Prism".into()),
         version: Some(app.package_info().version.to_string()),
-        comments: Some("Local AI stem separation".into()),
+        comments: Some(tr(lang, "Local AI stem separation")),
         license: Some("MIT".into()),
         website: Some("https://github.com/JonneNieminen/Prism".into()),
         ..Default::default()
     };
 
     // macOS has an application menu; Windows/Linux put Settings and Quit in File instead.
-    let app_menu = SubmenuBuilder::new(app, "Prism")
+    let app_menu = SubmenuBuilder::new(app, tr(lang, "Prism"))
         .about(Some(about))
         .separator()
         .item(&item("goSettings", "Settings…", Some("CmdOrCtrl+Comma"))?)
@@ -39,7 +40,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .quit()
         .build()?;
 
-    let mut file = SubmenuBuilder::new(app, "File")
+    let mut file = SubmenuBuilder::new(app, tr(lang, "File"))
         .item(&item("open", "Open Song…", Some("CmdOrCtrl+O"))?)
         .item(&item("separate", "Separate", Some("CmdOrCtrl+Enter"))?)
         .item(&item("cancel", "Cancel Separation", Some("CmdOrCtrl+Period"))?)
@@ -56,9 +57,17 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     }
     let file = file.build()?;
 
-    let edit = SubmenuBuilder::new(app, "Edit").undo().redo().separator().cut().copy().paste().select_all().build()?;
+    let edit = SubmenuBuilder::new(app, tr(lang, "Edit"))
+        .undo()
+        .redo()
+        .separator()
+        .cut()
+        .copy()
+        .paste()
+        .select_all()
+        .build()?;
 
-    let appearance = SubmenuBuilder::new(app, "Appearance")
+    let appearance = SubmenuBuilder::new(app, tr(lang, "Appearance"))
         .item(&item("theme:system", "Match System", None)?)
         .item(&item("theme:light", "Light", None)?)
         .item(&item("theme:dark", "Dark", None)?)
@@ -66,12 +75,13 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item("toggleTheme", "Switch Light / Dark", Some("CmdOrCtrl+Shift+L"))?)
         .build()?;
 
-    let mut view = SubmenuBuilder::new(app, "View")
+    let mut view = SubmenuBuilder::new(app, tr(lang, "View"))
         .item(&item("goSeparate", "Separate", Some("CmdOrCtrl+1"))?)
         .item(&item("goPlayer", "Player", Some("CmdOrCtrl+2"))?)
         .item(&item("goLibrary", "Library", Some("CmdOrCtrl+3"))?)
         .item(&item("goModels", "Models", Some("CmdOrCtrl+4"))?)
         .item(&item("goAnalyze", "Key & BPM", Some("CmdOrCtrl+5"))?)
+        .item(&item("goDownload", "Download Track", Some("CmdOrCtrl+6"))?)
         .separator()
         .item(&appearance)
         .separator();
@@ -84,7 +94,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
 
     // Single-key player shortcuts (Space, ←/→, 1–9, K, A, R, M) are handled by the
     // page so they never steal keys from text fields; listed here for discovery.
-    let playback = SubmenuBuilder::new(app, "Playback")
+    let playback = SubmenuBuilder::new(app, tr(lang, "Playback"))
         .item(&item("playPause", "Play / Pause", None)?)
         .item(&item("toStart", "Go to Start", None)?)
         .item(&item("seekBack", "Back 5 Seconds", None)?)
@@ -99,9 +109,10 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item("resetMix", "Reset Mix", None)?)
         .build()?;
 
-    let window = SubmenuBuilder::new(app, "Window").minimize().maximize().separator().bring_all_to_front().build()?;
+    let window =
+        SubmenuBuilder::new(app, tr(lang, "Window")).minimize().maximize().separator().bring_all_to_front().build()?;
 
-    let help = SubmenuBuilder::new(app, "Help")
+    let help = SubmenuBuilder::new(app, tr(lang, "Help"))
         .item(&item("goHelp", "Prism Help", Some("CmdOrCtrl+Shift+Slash"))?)
         .item(&item("goShortcuts", "Keyboard Shortcuts", Some("CmdOrCtrl+Slash"))?)
         .build()?;
@@ -111,6 +122,93 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     } else {
         Menu::with_items(app, &[&file, &edit, &view, &playback, &help])
     }
+}
+
+/// Menu text in the chosen language. English is the text in the code; anything not listed stays
+/// as written. The standard items the OS provides (Hide, Quit on macOS, Copy…) use the system language.
+fn tr(lang: Language, text: &str) -> String {
+    let table: &[(&str, &str)] = match lang {
+        Language::En => return text.to_string(),
+        Language::Fi => &[
+            ("Local AI stem separation", "Paikallinen tekoälypohjainen stemmien erottelu"),
+            ("File", "Arkisto"),
+            ("Edit", "Muokkaa"),
+            ("View", "Näytä"),
+            ("Appearance", "Ulkoasu"),
+            ("Playback", "Toisto"),
+            ("Window", "Ikkuna"),
+            ("Help", "Ohje"),
+            ("Settings…", "Asetukset…"),
+            ("Open Song…", "Avaa kappale…"),
+            ("Separate", "Erottele"),
+            ("Cancel Separation", "Peruuta erottelu"),
+            ("Export Current Mix…", "Vie nykyinen miksaus…"),
+            ("Export All Stems…", "Vie kaikki stemmit…"),
+            ("Quit", "Lopeta"),
+            ("Match System", "Seuraa järjestelmää"),
+            ("Light", "Vaalea"),
+            ("Dark", "Tumma"),
+            ("Switch Light / Dark", "Vaihda vaalea / tumma"),
+            ("Player", "Soitin"),
+            ("Library", "Kirjasto"),
+            ("Models", "Mallit"),
+            ("Key & BPM", "Sävellaji ja BPM"),
+            ("Download Track", "Lataa kappale"),
+            ("Toggle Full Screen", "Koko näyttö"),
+            ("Play / Pause", "Toisto / tauko"),
+            ("Go to Start", "Siirry alkuun"),
+            ("Back 5 Seconds", "Taakse 5 sekuntia"),
+            ("Forward 5 Seconds", "Eteenpäin 5 sekuntia"),
+            ("Master Volume Up", "Päävoimakkuus ylös"),
+            ("Master Volume Down", "Päävoimakkuus alas"),
+            ("Mute / Unmute", "Mykistä / palauta ääni"),
+            ("Karaoke (Remove Vocals)", "Karaoke (poista laulu)"),
+            ("A Cappella (Vocals Only)", "A cappella (vain laulu)"),
+            ("Reset Mix", "Palauta miksaus"),
+            ("Prism Help", "Prismin ohje"),
+            ("Keyboard Shortcuts", "Pikanäppäimet"),
+        ],
+        Language::Sv => &[
+            ("Local AI stem separation", "Lokal AI-baserad stemseparering"),
+            ("File", "Arkiv"),
+            ("Edit", "Redigera"),
+            ("View", "Visa"),
+            ("Appearance", "Utseende"),
+            ("Playback", "Uppspelning"),
+            ("Window", "Fönster"),
+            ("Help", "Hjälp"),
+            ("Settings…", "Inställningar…"),
+            ("Open Song…", "Öppna låt…"),
+            ("Separate", "Separera"),
+            ("Cancel Separation", "Avbryt separering"),
+            ("Export Current Mix…", "Exportera aktuell mix…"),
+            ("Export All Stems…", "Exportera alla stems…"),
+            ("Quit", "Avsluta"),
+            ("Match System", "Följ systemet"),
+            ("Light", "Ljust"),
+            ("Dark", "Mörkt"),
+            ("Switch Light / Dark", "Växla ljust / mörkt"),
+            ("Player", "Spelare"),
+            ("Library", "Bibliotek"),
+            ("Models", "Modeller"),
+            ("Key & BPM", "Tonart och BPM"),
+            ("Download Track", "Ladda ner låt"),
+            ("Toggle Full Screen", "Helskärm"),
+            ("Play / Pause", "Spela / pausa"),
+            ("Go to Start", "Gå till början"),
+            ("Back 5 Seconds", "Bakåt 5 sekunder"),
+            ("Forward 5 Seconds", "Framåt 5 sekunder"),
+            ("Master Volume Up", "Huvudvolym upp"),
+            ("Master Volume Down", "Huvudvolym ned"),
+            ("Mute / Unmute", "Tysta / slå på ljudet"),
+            ("Karaoke (Remove Vocals)", "Karaoke (ta bort sången)"),
+            ("A Cappella (Vocals Only)", "A cappella (bara sång)"),
+            ("Reset Mix", "Återställ mixen"),
+            ("Prism Help", "Prism Hjälp"),
+            ("Keyboard Shortcuts", "Kortkommandon"),
+        ],
+    };
+    table.iter().find(|(en, _)| *en == text).map_or_else(|| text.to_string(), |(_, t)| t.to_string())
 }
 
 pub fn forward<R: Runtime>(app: &AppHandle<R>, id: &str) {

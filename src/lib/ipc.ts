@@ -5,10 +5,12 @@ import type {
   AppError,
   CatalogEntry,
   ExportOptions,
+  Link,
   MixGain,
   ModelListing,
   ModelManifest,
   MusicInfo,
+  Platform,
   Project,
   Quality,
   Settings,
@@ -44,11 +46,29 @@ export type JobEvent =
       detail: string | null;
       note: string | null;
     }
+  | { kind: "log"; jobId: string; level: "info" | "warn"; text: string }
   | { kind: "done"; jobId: string; project: Project | null }
   | { kind: "error"; jobId: string; error: AppError };
 export type DownloadEvent =
   | { kind: "progress"; jobId: string; done: number; total: number }
   | { kind: "done"; jobId: string; modelId: string }
+  | { kind: "error"; jobId: string; error: AppError };
+export type TrackStage = "fetch" | "download" | "save";
+export type TrackEvent =
+  | {
+      kind: "progress";
+      jobId: string;
+      stage: TrackStage;
+      platform: Platform;
+      title: string | null;
+      uploader: string | null;
+      fraction: number | null;
+      doneBytes: number | null;
+      totalBytes: number | null;
+      speed: number | null;
+      etaSecs: number | null;
+    }
+  | { kind: "done"; jobId: string; path: string; title: string; separable: boolean }
   | { kind: "error"; jobId: string; error: AppError };
 export type DragDrop = { type: "enter" | "over" | "leave" | "drop"; paths: string[] };
 
@@ -61,6 +81,12 @@ export interface Backend {
   analyzeTrack(path: string): Promise<Analysis>;
   startSeparation(path: string, modelId: string, quality: Quality): Promise<string>;
   cancelJob(jobId: string): Promise<void>;
+  /** Recognise the platform of a pasted link; rejects with a reason if it can't be downloaded. */
+  classifyLink(url: string): Promise<Link>;
+  startTrackDownload(url: string): Promise<string>;
+  /** Where downloaded tracks are saved right now (the setting, or the default). */
+  trackDownloadDir(): Promise<string>;
+  onTrackDownload(cb: (e: TrackEvent) => void): Promise<() => void>;
   listProjects(): Promise<Project[]>;
   openProject(id: string): Promise<OpenProject>;
   /** Estimate key and tempo for a project saved before detection existed. */
@@ -86,6 +112,8 @@ export interface Backend {
   pickFolder(): Promise<string | null>;
   pickSavePath(defaultPath: string, ext: string): Promise<string | null>;
   reveal(path: string): Promise<void>;
+  /** Open a folder in the system file manager; `create` makes it first if it is missing. */
+  openFolder(path: string, create?: boolean): Promise<void>;
   openUrl(url: string): Promise<void>;
   joinPath(dir: string, name: string): string;
   /** Native menu selections (ids match `CommandId`). */
@@ -111,6 +139,10 @@ async function tauriBackend(): Promise<Backend> {
     analyzeTrack: (path) => invoke("analyze_track", { path }),
     startSeparation: (path, modelId, quality) => invoke("start_separation", { path, modelId, quality }),
     cancelJob: (jobId) => invoke("cancel_job", { jobId }),
+    classifyLink: (url) => invoke("classify_link", { url }),
+    startTrackDownload: (url) => invoke("start_track_download", { url }),
+    trackDownloadDir: () => invoke("track_download_dir"),
+    onTrackDownload: (cb) => on("track-download", cb),
     listProjects: () => invoke("list_projects"),
     openProject: async (id) => {
       const r = await invoke<{ project: Project; peaks: Record<string, number[]>; stemPaths: Record<string, string> }>(
@@ -153,6 +185,7 @@ async function tauriBackend(): Promise<Backend> {
     pickSavePath: async (defaultPath, ext) =>
       dialog.save({ defaultPath, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] }),
     reveal: (path) => opener.revealItemInDir(path),
+    openFolder: (path, create = false) => invoke("open_folder", { path, create }),
     openUrl: (url) => opener.openUrl(url),
     joinPath: (dir, name) => `${dir.replace(/\/+$/, "")}/${name}`,
     onMenu: (cb) => on<string>("menu", cb),

@@ -5,12 +5,14 @@ import type { Project } from "../../bindings";
 import { Modal } from "../../components/Modal";
 import { Button, Card, Chip, IconButton, PageHeader } from "../../components/ui";
 import { stemColor } from "../../lib/colors";
-import { formatBytes, formatDate, formatMusic, formatTime, QUALITY_LABEL } from "../../lib/format";
+import { formatBytes, formatDate, formatMusic, formatTime, qualityLabel } from "../../lib/format";
 import { backend, toAppError } from "../../lib/ipc";
 import { useApp } from "../../store/app";
 import { forgetPlayerState, usePlayer } from "../player/playerStore";
+import { useT } from "../../i18n/useT";
 
 export function LibraryView() {
+  const { t, tn } = useT();
   const projects = useApp((s) => s.projects);
   const refresh = useApp((s) => s.refreshProjects);
   const openProject = useApp((s) => s.openProject);
@@ -48,9 +50,9 @@ export function LibraryView() {
         useApp.setState({ project: null });
       }
       await refresh();
-      toast({ tone: "success", title: target === "all" ? "Library cleared" : `Removed “${target.title}”` });
+      toast({ tone: "success", title: target === "all" ? t("Library cleared") : t("Removed “{title}”", { title: target.title }) });
     } catch (e) {
-      toast({ tone: "error", title: "Couldn't remove", body: toAppError(e).message });
+      toast({ tone: "error", title: t("Couldn't remove"), body: toAppError(e).message });
     }
     setConfirm(null);
   };
@@ -58,24 +60,31 @@ export function LibraryView() {
   return (
     <div className="mx-auto max-w-[1000px] py-10">
       <PageHeader
-        title="Library"
+        title={t("Library")}
         subtitle={
           <>
             {projects.length > 0 &&
-              `${projects.length} separated ${projects.length === 1 ? "song" : "songs"}${size != null ? ` · ${formatBytes(size)} on disk` : ""} — reopen instantly, no reprocessing. `}
+              (size != null
+                ? tn(
+                    "{n} separated song · {size} on disk — reopen instantly, no reprocessing.",
+                    "{n} separated songs · {size} on disk — reopen instantly, no reprocessing.",
+                    projects.length,
+                    { size: formatBytes(size) },
+                  )
+                : tn("{n} separated song — reopen instantly, no reprocessing.", "{n} separated songs — reopen instantly, no reprocessing.", projects.length)) + " "}
             {retention > 0 ? (
-              <button className="text-accent hover:underline" onClick={() => go("settings")} data-tip="Change how long songs are kept" data-shortcut="goSettings">
-                Songs are deleted after {retention === 1 ? "1 day" : `${retention} days`}.
+              <button className="text-accent hover:underline" onClick={() => go("settings")} data-tip={t("Change how long songs are kept")} data-shortcut="goSettings">
+                {tn("Songs are deleted after {n} day.", "Songs are deleted after {n} days.", retention)}
               </button>
             ) : (
-              "Songs are kept until you delete them."
+              t("Songs are kept until you delete them.")
             )}
           </>
         }
         right={
           projects.length > 0 && (
-            <Button variant="danger" size="sm" icon={<Trash2 size={13} />} onClick={() => setConfirm("all")} tip="Delete every cached stem (your songs are untouched)">
-              Clear library
+            <Button variant="danger" size="sm" icon={<Trash2 size={13} />} onClick={() => setConfirm("all")} tip={t("Delete every cached stem (your songs are untouched)")}>
+              {t("Clear library")}
             </Button>
           )
         }
@@ -86,10 +95,10 @@ export function LibraryView() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-elevated">
             <Library size={24} className="text-muted" />
           </div>
-          <div className="font-medium">Nothing here yet</div>
-          <p className="mt-1 max-w-sm text-sm text-muted">Songs you separate are kept here, so you can come back to the stems without waiting again.</p>
-          <Button className="mt-6" variant="primary" onClick={() => go("separate")} tip="Load a song and split it" shortcut="goSeparate">
-            Separate a song
+          <div className="font-medium">{t("Nothing here yet")}</div>
+          <p className="mt-1 max-w-sm text-sm text-muted">{t("Songs you separate are kept here, so you can come back to the stems without waiting again.")}</p>
+          <Button className="mt-6" variant="primary" onClick={() => go("separate")} tip={t("Load a song and split it")} shortcut="goSeparate">
+            {t("Separate a song")}
           </Button>
         </Card>
       ) : (
@@ -102,18 +111,18 @@ export function LibraryView() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === "Escape" && query && (e.stopPropagation(), setQuery(""))}
-                placeholder="Search by title, artist, key or BPM"
-                aria-label="Search the library"
-                data-tip="Type any part of a title, artist, key (e.g. A minor, 8A) or tempo"
+                placeholder={t("Search by title, artist, key or BPM")}
+                aria-label={t("Search the library")}
+                data-tip={t("Type any part of a title, artist, key (e.g. A minor, 8A) or tempo")}
                 className="h-9 w-full rounded-lg border border-border bg-surface pr-3 pl-9 text-[13px] outline-none placeholder:text-faint focus:border-accent"
               />
             </div>
           )}
           {shown.length === 0 && (
             <p className="card px-4 py-6 text-center text-[13px] text-muted">
-              No songs match “{query}”.{" "}
+              {t("No songs match “{query}”.", { query })}{" "}
               <button className="text-accent hover:underline" onClick={() => setQuery("")}>
-                Show all
+                {t("Show all")}
               </button>
             </p>
           )}
@@ -130,8 +139,8 @@ export function LibraryView() {
                   <div className="group flex items-center gap-3.5 px-3 py-2.5 pr-3 transition-colors hover:bg-elevated/60">
                     <button
                       onClick={() => openProject(p.id)}
-                      aria-label={`Open ${p.title}`}
-                      data-tip="Open in the player"
+                      aria-label={t("Open {title}", { title: p.title })}
+                      data-tip={t("Open in the player")}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent transition-colors hover:bg-accent hover:text-white"
                     >
                       <Play size={15} fill="currentColor" className="ml-0.5" />
@@ -143,18 +152,18 @@ export function LibraryView() {
                           onDone={async (title) => {
                             setEditing(null);
                             if (title && title !== p.title) {
-                              await (await backend()).renameProject(p.id, title).catch((e) => toast({ tone: "error", title: "Couldn't rename", body: toAppError(e).message }));
+                              await (await backend()).renameProject(p.id, title).catch((e) => toast({ tone: "error", title: t("Couldn't rename"), body: toAppError(e).message }));
                               void refresh();
                             }
                           }}
                         />
                       ) : (
-                        <button className="block max-w-full truncate text-left text-[13px] font-medium hover:underline" onClick={() => openProject(p.id)} data-tip="Open in the player">
-                          {p.title}
+                        <button className="block max-w-full truncate text-left text-[13px] font-medium hover:underline" onClick={() => openProject(p.id)} data-tip={t("Open in the player")}>
+                          <span className="select-text">{p.title}</span>
                         </button>
                       )}
                       <div className="mt-0.5 truncate text-xs text-muted">
-                        {[p.artist, formatTime(p.durationSecs), formatMusic(p.music), formatDate(p.createdAt), `${p.model.name} · ${QUALITY_LABEL[p.quality]}`].filter(Boolean).join(" · ")}
+                        {[p.artist, formatTime(p.durationSecs), formatMusic(p.music), formatDate(p.createdAt), `${p.model.name} · ${qualityLabel(p.quality)}`].filter(Boolean).join(" · ")}
                       </div>
                     </div>
                     <div className="hidden items-center gap-1 md:flex">
@@ -162,12 +171,12 @@ export function LibraryView() {
                         <span key={s.id} data-tip={s.label} className="h-1.5 w-5 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
                       ))}
                     </div>
-                    {current?.project.id === p.id && <Chip color="var(--accent)" tip="Currently open in the player">Open</Chip>}
+                    {current?.project.id === p.id && <Chip color="var(--accent)" tip={t("Currently open in the player")}>{t("Open")}</Chip>}
                     <div className="flex opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                      <IconButton label={`Rename ${p.title}`} onClick={() => setEditing(p.id)}>
+                      <IconButton label={t("Rename {title}", { title: p.title })} onClick={() => setEditing(p.id)}>
                         <Pencil size={16} />
                       </IconButton>
-                      <IconButton label={`Delete ${p.title}`} onClick={() => setConfirm(p)}>
+                      <IconButton label={t("Delete {title}", { title: p.title })} onClick={() => setConfirm(p)}>
                         <Trash2 size={16} />
                       </IconButton>
                     </div>
@@ -179,18 +188,18 @@ export function LibraryView() {
         </>
       )}
 
-      <Modal open={!!confirm} onClose={() => setConfirm(null)} title={confirm === "all" ? "Clear the whole library?" : "Delete this project?"}>
+      <Modal open={!!confirm} onClose={() => setConfirm(null)} title={confirm === "all" ? t("Clear the whole library?") : t("Delete this project?")}>
         <p className="text-sm text-muted">
           {confirm === "all"
-            ? `This deletes every cached stem (${size != null ? formatBytes(size) : "all files"}). Your original songs aren't touched. This can't be undone.`
-            : confirm && `The stems for “${confirm.title}” will be deleted. Your original song isn't touched. This can't be undone.`}
+            ? t("This deletes every cached stem ({what}). Your original songs aren't touched. This can't be undone.", { what: size != null ? formatBytes(size) : t("all files") })
+            : confirm && t("The stems for “{title}” will be deleted. Your original song isn't touched. This can't be undone.", { title: confirm.title })}
         </p>
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setConfirm(null)} data-autofocus shortcut="closeDialog" tip="Keep everything">
-            Cancel
+          <Button variant="ghost" onClick={() => setConfirm(null)} data-autofocus shortcut="closeDialog" tip={t("Keep everything")}>
+            {t("Cancel")}
           </Button>
-          <Button variant="danger" onClick={() => confirm && void remove(confirm)} tip="Delete permanently">
-            {confirm === "all" ? "Clear library" : "Delete"}
+          <Button variant="danger" onClick={() => confirm && void remove(confirm)} tip={t("Delete permanently")}>
+            {confirm === "all" ? t("Clear library") : t("Delete")}
           </Button>
         </div>
       </Modal>
@@ -199,6 +208,7 @@ export function LibraryView() {
 }
 
 function RenameField({ initial, onDone }: { initial: string; onDone: (v: string | null) => void }) {
+  const { t } = useT();
   const [v, setV] = useState(initial);
   return (
     <form
@@ -210,17 +220,17 @@ function RenameField({ initial, onDone }: { initial: string; onDone: (v: string 
     >
       <input
         autoFocus
-        aria-label="Project title"
+        aria-label={t("Project title")}
         value={v}
         maxLength={200}
         onChange={(e) => setV(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && onDone(null)}
         className="h-8 w-full max-w-sm rounded-lg border border-border bg-surface px-2 text-sm outline-none focus:border-accent"
       />
-      <IconButton label="Save title" type="submit">
+      <IconButton label={t("Save title")} type="submit">
         <Check size={16} />
       </IconButton>
-      <IconButton label="Cancel rename" type="button" onClick={() => onDone(null)}>
+      <IconButton label={t("Cancel rename")} type="button" onClick={() => onDone(null)}>
         <X size={16} />
       </IconButton>
     </form>

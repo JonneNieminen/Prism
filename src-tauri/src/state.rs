@@ -108,8 +108,15 @@ impl AppState {
             t.cancel();
         }
     }
+    /// A job with this prefix is running and hasn't been cancelled. A cancelled one may still be
+    /// unwinding (a model compile can't be interrupted) but no longer blocks starting the next.
     pub fn busy(&self, prefix: &str) -> bool {
-        self.jobs.lock().unwrap().keys().any(|k| k.starts_with(prefix))
+        self.jobs.lock().unwrap().iter().any(|(k, t)| k.starts_with(prefix) && !t.is_cancelled())
+    }
+
+    /// Any job with this prefix other than `me` is still registered, cancelled or not.
+    pub fn other_jobs_running(&self, prefix: &str, me: &str) -> bool {
+        self.jobs.lock().unwrap().keys().any(|k| k.starts_with(prefix) && k != me)
     }
 
     pub fn drop_loaded(&self) {

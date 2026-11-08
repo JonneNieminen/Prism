@@ -13,13 +13,12 @@ function icon(paths: React.ReactNode) {
   };
 }
 
-/** One song splitting into its stems. */
-export const SongTree = icon(
+/** Stems stacked like layers of the mix. */
+export const StackedStems = icon(
   <>
-    <path d="M5 4h14" />
-    <path d="M12 7v3" />
-    <path d="M6 14v-1c0-2 1-3 3-3h6c2 0 3 1 3 3v1" />
-    <path d="M6 17v3M12 17v3M18 17v3" />
+    <rect x="4" y="4" width="10" height="4" rx="2" />
+    <rect x="8" y="10" width="12" height="4" rx="2" />
+    <rect x="4" y="16" width="8" height="4" rx="2" />
   </>,
 );
 

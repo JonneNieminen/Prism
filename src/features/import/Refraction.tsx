@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
+import { tr } from "../../i18n";
 import { stemColor } from "../../lib/colors";
 
 /**
@@ -32,7 +33,7 @@ export function Refraction({
   const done = progress >= 0.999;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: H }} role="img" aria-label="Separating the song into stems">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: H }} role="img" aria-label={tr("Separating the song into stems")}>
       {/* lanes, outer first so inner lanes sit on top where they peel off the beam */}
       {[...lanes].reverse().map((l) => {
         const i = lanes.indexOf(l);

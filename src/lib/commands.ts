@@ -1,6 +1,7 @@
 // Runs a command from any source: keyboard, native menu, buttons.
 import { usePlayer } from "../features/player/playerStore";
 import { STEP, useMaster } from "./audio/master";
+import { tr } from "../i18n";
 import { useApp } from "../store/app";
 import { backend, isTauri } from "./ipc";
 import type { CommandId } from "./shortcuts";
@@ -54,6 +55,8 @@ export async function runCommand(id: CommandId | "muteStem" | "soloStem", index 
       return app.go("library");
     case "goAnalyze":
       return app.go("analyze");
+    case "goDownload":
+      return app.go("download");
     case "goModels":
       return app.go("models");
     case "goSettings":
@@ -90,7 +93,7 @@ export async function runCommand(id: CommandId | "muteStem" | "soloStem", index 
       return inPlayer ? player.setLoopEdge("end") : undefined;
     case "loopToggle":
       if (inPlayer && !player.toggleLoop())
-        app.toast({ tone: "info", title: "No loop yet", body: "Shift-drag across a waveform, or press I and O at the start and end of the part to loop." });
+        app.toast({ tone: "info", title: tr("No loop yet"), body: tr("Shift-drag across a waveform, or press I and O at the start and end of the part to loop.") });
       return;
     case "karaoke":
       return inPlayer ? player.preset("karaoke") : undefined;

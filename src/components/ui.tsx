@@ -1,7 +1,9 @@
 import { motion } from "motion/react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { forwardRef } from "react";
+import { tr } from "../i18n";
 import { stemColor, withAlpha } from "../lib/colors";
+import { stemLabel } from "../lib/format";
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -163,7 +165,7 @@ export function StemChip({ id, label, color }: { id: string; label: string; colo
   return (
     <Chip color={c}>
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: c }} />
-      {label}
+      {stemLabel(label)}
     </Chip>
   );
 }
@@ -217,9 +219,9 @@ export function Spinner({ className }: { className?: string }) {
 
 /** 1–5 segments, used for speed / quality hints. */
 export function Meter({ value, label }: { value: number; label: string }) {
-  const words = ["", "very low", "low", "medium", "high", "very high"];
+  const words = ["", tr("very low"), tr("low"), tr("medium"), tr("high"), tr("very high")];
   return (
-    <span className="inline-flex items-center gap-2 text-[11px] text-muted" aria-label={`${label}: ${value} of 5`} data-tip={`${label}: ${words[value]}`}>
+    <span className="inline-flex items-center gap-2 text-[11px] text-muted" aria-label={tr("{label}: {value} of 5", { label, value })} data-tip={`${label}: ${words[value]}`}>
       {label}
       <span className="inline-flex gap-0.5">
         {[1, 2, 3, 4, 5].map((i) => (

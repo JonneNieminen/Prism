@@ -8,15 +8,17 @@ import { MIN_LOOP } from "../../lib/audio/engine";
 import { runCommand } from "../../lib/commands";
 import { stemColor, withAlpha } from "../../lib/colors";
 import { capsOf, formatKeys } from "../../lib/shortcuts";
-import { formatBpm, formatTime, QUALITY_LABEL } from "../../lib/format";
+import { formatBpm, formatKeyName, formatTime, qualityLabel, stemLabel } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { ExportDialog } from "../export/ExportDialog";
 import { usePlayer } from "./playerStore";
+import { useT } from "../../i18n/useT";
 
 /** Width of the left controls column in each stem row (keeps the playhead aligned). */
 const CONTROLS_W = 236;
 
 export function PlayerView({ theme }: { theme: string }) {
+  const { t } = useT();
   const open = useApp((s) => s.project)!;
   const setExportTarget = useApp((s) => s.setExportTarget);
   const ensureMusic = useApp((s) => s.ensureMusic);
@@ -143,30 +145,30 @@ export function PlayerView({ theme }: { theme: string }) {
             {project.artist && <span>{project.artist} ·</span>}
             <span className="tabular">{formatTime(project.durationSecs)}</span>
             {music?.bpm != null && (
-              <Chip color="var(--accent)" tip={`Estimated tempo of the original mix${music.bpmConfidence < 0.4 ? " (low confidence)" : ""}. It can land on half or double time.`}>
+              <Chip color="var(--accent)" tip={music.bpmConfidence < 0.4 ? t("Estimated tempo of the original mix (low confidence). It can land on half or double time.") : t("Estimated tempo of the original mix. It can land on half or double time.")}>
                 {formatBpm(music.bpm)}
               </Chip>
             )}
             {music?.key && (
-              <Chip color="var(--accent)" tip={`Estimated key of the original mix${music.key.confidence < 0.25 ? " (low confidence; the relative major or minor is close)" : ""} · Camelot ${music.key.camelot}`}>
-                {music.key.name} · {music.key.camelot}
+              <Chip color="var(--accent)" tip={(music.key.confidence < 0.25 ? t("Estimated key of the original mix (low confidence; the relative major or minor is close)") : t("Estimated key of the original mix")) + ` · Camelot ${music.key.camelot}`}>
+                {formatKeyName(music.key.name)} · {music.key.camelot}
               </Chip>
             )}
             <span>·</span>
-            <Chip tip="The model that made these stems">{project.model.name}</Chip>
-            <Chip tip="Quality setting used">{QUALITY_LABEL[project.quality]}</Chip>
+            <Chip tip={t("The model that made these stems")}>{project.model.name}</Chip>
+            <Chip tip={t("Quality setting used")}>{qualityLabel(project.quality)}</Chip>
             <span className="text-[12px] text-faint">
-              Separated in {Math.round(project.processingSecs)} s on {project.device}
+              {t("Separated in {secs} s on {device}", { secs: Math.round(project.processingSecs), device: project.device })}
             </span>
           </span>
         }
         right={
           <div className="flex gap-2">
-            <Button icon={<Archive size={14} />} onClick={() => setExportTarget({ kind: "zip" })} tip="Download every stem in one .zip" shortcut="exportStems">
-              Download all stems
+            <Button icon={<Archive size={14} />} onClick={() => setExportTarget({ kind: "zip" })} tip={t("Download every stem in one .zip")} shortcut="exportStems">
+              {t("Download all stems")}
             </Button>
-            <Button variant="primary" icon={<Share size={14} />} onClick={() => setExportTarget({ kind: "mix" })} disabled={audibleCount === 0} tip="Save what you hear as one file" shortcut="exportMix">
-              Export mix
+            <Button variant="primary" icon={<Share size={14} />} onClick={() => setExportTarget({ kind: "mix" })} disabled={audibleCount === 0} tip={t("Save what you hear as one file")} shortcut="exportMix">
+              {t("Export mix")}
             </Button>
           </div>
         }
@@ -186,8 +188,8 @@ export function PlayerView({ theme }: { theme: string }) {
           {playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" className="ml-0.5" />}
         </motion.button>
         <button
-          aria-label="Go to start"
-          data-tip="Go to start"
+          aria-label={t("Go to start")}
+          data-tip={t("Go to start")}
           data-shortcut="toStart"
           className="flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-text"
           onClick={() => engine?.seek(0)}
@@ -203,8 +205,8 @@ export function PlayerView({ theme }: { theme: string }) {
             ref={seekRef}
             type="range"
             className="prism-range min-w-0 flex-1"
-            aria-label="Playback position"
-            data-tip="Drag to move through the song (← → skip 5 s)"
+            aria-label={t("Playback position")}
+            data-tip={t("Drag to move through the song (← → skip 5 s)")}
             min={0}
             max={engine?.duration || project.durationSecs}
             step={0.01}
@@ -228,27 +230,27 @@ export function PlayerView({ theme }: { theme: string }) {
             aria-pressed={loopOn}
             onClick={() => void runCommand("loopToggle")}
             disabled={!ready}
-            tip={loop ? (loopOn ? "Stop looping" : "Loop this part again") : "Loop a part: shift-drag across a waveform, or press I and O at its start and end"}
+            tip={loop ? (loopOn ? t("Stop looping") : t("Loop this part again")) : t("Loop a part: shift-drag across a waveform, or press I and O at its start and end")}
             shortcut="loopToggle"
           >
-            {loop ? <span className="tabular">{`${formatTime(loop.start)}–${formatTime(loop.end)}`}</span> : <span className="max-xl:sr-only">Loop</span>}
+            {loop ? <span className="tabular">{`${formatTime(loop.start)}–${formatTime(loop.end)}`}</span> : <span className="max-xl:sr-only">{t("Loop")}</span>}
           </Button>
           {loop && (
-            <IconButton label="Clear loop" tip="Clear the loop" onClick={() => setLoop(null)}>
+            <IconButton label={t("Clear loop")} tip={t("Clear the loop")} onClick={() => setLoop(null)}>
               <X size={13} />
             </IconButton>
           )}
         </div>
         {hasVocals && (
           <div className="flex items-center gap-1 border-l border-border pl-4">
-            <Button size="sm" variant={isKaraoke ? "secondary" : "ghost"} icon={<MicOff size={13} />} aria-pressed={isKaraoke} onClick={() => preset("karaoke")} tip="Remove the vocals" shortcut="karaoke">
-              <span className="max-xl:sr-only">Karaoke</span>
+            <Button size="sm" variant={isKaraoke ? "secondary" : "ghost"} icon={<MicOff size={13} />} aria-pressed={isKaraoke} onClick={() => preset("karaoke")} tip={t("Remove the vocals")} shortcut="karaoke">
+              <span className="max-xl:sr-only">{t("Karaoke")}</span>
             </Button>
-            <Button size="sm" variant={isAcapella ? "secondary" : "ghost"} icon={<Headphones size={13} />} aria-pressed={isAcapella} onClick={() => preset("acapella")} tip="Hear only the vocals" shortcut="acapella">
-              <span className="max-xl:sr-only">A cappella</span>
+            <Button size="sm" variant={isAcapella ? "secondary" : "ghost"} icon={<Headphones size={13} />} aria-pressed={isAcapella} onClick={() => preset("acapella")} tip={t("Hear only the vocals")} shortcut="acapella">
+              <span className="max-xl:sr-only">{t("A cappella")}</span>
             </Button>
-            <Button size="sm" variant="ghost" icon={<RotateCcw size={13} />} onClick={() => preset("reset")} tip="Unmute everything, volumes to 100%" shortcut="resetMix">
-              <span className="max-xl:sr-only">Reset</span>
+            <Button size="sm" variant="ghost" icon={<RotateCcw size={13} />} onClick={() => preset("reset")} tip={t("Unmute everything, volumes to 100%")} shortcut="resetMix">
+              <span className="max-xl:sr-only">{t("Reset")}</span>
             </Button>
           </div>
         )}
@@ -256,7 +258,7 @@ export function PlayerView({ theme }: { theme: string }) {
 
       {error && (
         <div role="alert" className="mb-3 rounded-xl border border-border bg-surface p-3.5 text-[13px] text-danger">
-          Couldn't load the stems for playback: {error}
+          {t("Couldn't load the stems for playback:")} {error}
         </div>
       )}
 
@@ -301,27 +303,27 @@ export function PlayerView({ theme }: { theme: string }) {
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12px] text-muted">
         <span className="flex items-center gap-1.5">
-          <Kbd>Space</Kbd> play / pause
+          <Kbd>{t("Space")}</Kbd> {t("play / pause")}
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>←</Kbd>
-          <Kbd>→</Kbd> skip 5 s
+          <Kbd>→</Kbd> {t("skip 5 s")}
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>1</Kbd>–<Kbd>{Math.min(9, project.stems.length)}</Kbd> mute
+          <Kbd>1</Kbd>–<Kbd>{Math.min(9, project.stems.length)}</Kbd> {t("mute")}
         </span>
         <span className="flex items-center gap-1.5">
-          <Keys keys={capsOf(["shift", "1"])} /> solo
+          <Keys keys={capsOf(["shift", "1"])} /> {t("solo")}
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>K</Kbd> karaoke
+          <Kbd>K</Kbd> {t("karaoke")}
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>I</Kbd>
-          <Kbd>O</Kbd> set loop
+          <Kbd>O</Kbd> {t("set loop")}
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>L</Kbd> loop
+          <Kbd>L</Kbd> {t("loop")}
         </span>
       </div>
 
@@ -357,6 +359,8 @@ function StemRow(props: {
   const color = useMemo(() => stemColor(stem.id, stem.color), [stem.id, stem.color]);
   const VolIcon = !props.audible || props.volume === 0 ? VolumeX : props.volume < 0.5 ? Volume1 : Volume2;
   const n = index + 1;
+  const { t } = useT();
+  const name = stemLabel(stem.label);
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -371,8 +375,8 @@ function StemRow(props: {
       {/* The whole label area is the mute toggle; the volume slider and solo button sit above it. */}
       <button
         aria-pressed={props.muted}
-        aria-label={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`}
-        data-tip={`${props.muted ? "Unmute" : "Mute"} ${stem.label} · ${formatKeys(["shift"])}-click to change several  ${n}`}
+        aria-label={props.muted ? t("Unmute {name}", { name }) : t("Mute {name}", { name })}
+        data-tip={(props.muted ? t("Unmute {name}", { name }) : t("Mute {name}", { name })) + ` · ${t("{keys}-click to change several", { keys: formatKeys(["shift"]) })}  ${n}`}
         onClick={(e) => props.onMute(e.shiftKey)}
         onMouseDown={(e) => e.shiftKey && e.preventDefault()}
         className="absolute inset-y-0 left-[3px] cursor-pointer select-none hover:bg-elevated/50"
@@ -382,8 +386,8 @@ function StemRow(props: {
         {/* Mute dot: filled = playing, hollow = muted. No transition, so it flips with the sound. */}
         <button
           aria-pressed={props.muted}
-          aria-label={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`}
-          data-tip={props.muted ? `${stem.label} is muted — click to unmute` : `${stem.label} is playing — click to mute`}
+          aria-label={props.muted ? t("Unmute {name}", { name }) : t("Mute {name}", { name })}
+          data-tip={props.muted ? t("{name} is muted — click to unmute", { name }) : t("{name} is playing — click to mute", { name })}
           onClick={(e) => props.onMute(e.shiftKey)}
           onMouseDown={(e) => e.shiftKey && e.preventDefault()}
           className="pointer-events-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-elevated"
@@ -392,8 +396,8 @@ function StemRow(props: {
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={cx("truncate text-[13px] font-medium", !props.audible && "text-muted")}>{stem.label}</span>
-            <span className="text-[11px] text-faint" data-tip={`Press ${n} to mute, ${formatKeys(["shift", String(n)])} to solo`}>
+            <span className={cx("truncate text-[13px] font-medium", !props.audible && "text-muted")}>{name}</span>
+            <span className="text-[11px] text-faint" data-tip={t("Press {n} to mute, {keys} to solo", { n, keys: formatKeys(["shift", String(n)]) })}>
               {n}
             </span>
           </div>
@@ -402,8 +406,8 @@ function StemRow(props: {
             <input
               type="range"
               className="prism-range pointer-events-auto w-[92px]"
-              aria-label={`${stem.label} volume`}
-              data-tip={`${stem.label} volume · double-click to reset`}
+              aria-label={t("{name} volume", { name })}
+              data-tip={t("{name} volume · double-click to reset", { name })}
               min={0}
               max={1.5}
               step={0.01}
@@ -416,7 +420,7 @@ function StemRow(props: {
           </div>
         </div>
         <div className="pointer-events-auto flex gap-1">
-          <ToggleChip label="S" tip={props.solo ? `Stop soloing ${stem.label}` : `Solo ${stem.label}`} keys={formatKeys(["shift", String(n)])} on={props.solo} color={color} onClick={props.onSolo} />
+          <ToggleChip label="S" tip={props.solo ? t("Stop soloing {name}", { name }) : t("Solo {name}", { name })} keys={formatKeys(["shift", String(n)])} on={props.solo} color={color} onClick={props.onSolo} />
         </div>
       </div>
       <div
@@ -425,7 +429,7 @@ function StemRow(props: {
         onPointerMove={props.onScrubMove}
         onPointerUp={props.onScrubEnd}
         onPointerCancel={props.onScrubEnd}
-        data-tip={`Click to jump here, drag to scrub · ${formatKeys(["shift"])}-drag to loop a part`}
+        data-tip={t("Click to jump here, drag to scrub · {keys}-drag to loop a part", { keys: formatKeys(["shift"]) })}
       >
         {/* Peaks come from the library, so the waveform shows instantly; audio decodes in the background. */}
         <div className={cx("transition-opacity duration-300", props.loading && "animate-pulse opacity-60")}>
@@ -433,8 +437,8 @@ function StemRow(props: {
         </div>
       </div>
       <button
-        aria-label={`Export ${stem.label}`}
-        data-tip={`Export ${stem.label} only`}
+        aria-label={t("Export {name}", { name })}
+        data-tip={t("Export {name} only", { name })}
         onClick={props.onDownload}
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted opacity-50 transition hover:bg-elevated hover:text-text group-hover:opacity-100 focus-visible:opacity-100"
       >

@@ -83,7 +83,8 @@ impl MdxNet {
         if wf.len() != 1 {
             return Err(PrismError::InvalidModel("MDX-Net models have exactly one weights file.".into()));
         }
-        on_step(LoadStep { index: 0, total: 1, stem: None });
+        let bytes = std::fs::metadata(dir.join(&wf[0].file)).map_or(0, |m| m.len());
+        on_step(LoadStep { index: 0, total: 1, stem: None, file: wf[0].file.clone(), bytes });
         let (sess, device) = session(&dir.join(&wf[0].file), rt)?;
         let input = input_names(&sess).into_iter().next().unwrap_or_else(|| "input".into());
         Ok(MdxNet { manifest: m.clone(), sess, input, stft: Stft::new(p.n_fft, p.hop, false), p, device })

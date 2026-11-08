@@ -40,6 +40,11 @@ jobs:
         with:
           cache-key: release
 
+      # The link downloader (yt-dlp) ships inside the app; checksum-verified by the script.
+      - name: Fetch downloader
+        shell: bash
+        run: node scripts/fetch-ytdlp.mjs
+
       - name: Build (${{ matrix.bundles }})
         shell: bash
         run: |

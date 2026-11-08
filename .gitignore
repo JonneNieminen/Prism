@@ -1,4 +1,6 @@
 node_modules/
+src-tauri/bin/*
+!src-tauri/bin/.gitkeep
 dist/
 target/
 *.onnx

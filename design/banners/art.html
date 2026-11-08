@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
   Repo imagery for Prism, rendered to PNG by design/banners/render.sh (headless Chrome).
-  ?art=hero|social|separate|mix|export|private  &theme=dark|light
+  ?art=hero|social|separate|download|mix|export|languages|private  &theme=dark|light
 -->
 <html>
 <head>
@@ -119,6 +119,22 @@ if (art === "hero" || art === "social") {
         <div style="height:132px;border-radius:14px;background:var(--card);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;justify-content:space-between">
           <span style="width:30px;height:30px;border-radius:8px;background:${C(c)};opacity:.9"></span>
           <div><div style="font-size:14px;font-weight:600">${n}</div><div style="margin-top:4px;font-size:13px;color:var(--muted)">.${f.toLowerCase()} · ${f}</div></div>
+        </div>`).join("")}</div>` },
+    download: {
+      title: "Download a track", sub: "Paste a link from YouTube, SoundCloud, Instagram or TikTok. Prism saves the audio, ready to separate.",
+      art: `<div style="position:absolute;left:40px;right:40px;bottom:40px">
+        <div style="display:flex;align-items:center;gap:12px;height:50px;padding:0 16px;border-radius:12px;background:var(--card);border:1px solid var(--line)">
+          <span style="color:var(--faint);font-size:15px;font-family:ui-monospace,Menlo,monospace">soundcloud.com/artist/neon-skyline</span>
+          <span class="pill" style="margin-left:auto;height:28px;font-size:13px;color:var(--accent)">SoundCloud</span>
+        </div>
+        <div style="margin-top:16px;display:flex;align-items:center;height:56px">${["vocals", "drums", "bass", "other"].map((s, i) => waveform(140, 52, C(s), i + 5)).join("")}</div>
+      </div>` },
+    languages: {
+      title: "Speaks your language", sub: "English, Finnish and Swedish, switchable in Settings. Menus, buttons and help follow along.",
+      art: `<div style="position:absolute;left:40px;right:40px;bottom:40px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">${[["English", "Separate a song", "vocals"], ["Suomi", "Erottele kappale", "drums"], ["Svenska", "Separera en låt", "bass"]].map(([n, s, c]) => `
+        <div style="height:132px;border-radius:14px;background:var(--card);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;justify-content:space-between">
+          <span style="width:30px;height:6px;border-radius:3px;background:${C(c)}"></span>
+          <div><div style="font-size:19px;font-weight:600">${n}</div><div style="margin-top:6px;font-size:14px;color:var(--muted)">${s}</div></div>
         </div>`).join("")}</div>` },
     private: {
       title: "Private by design", sub: "Runs entirely on your computer. No uploads, no accounts — models are checksum-verified ONNX.",

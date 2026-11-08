@@ -1,7 +1,7 @@
 // Browser-only stand-in for the Rust backend, so the UI can be developed and
 // checked with `npm run dev` in a normal browser. Never used inside Tauri.
 import type { CatalogEntry, ModelInfo, ModelManifest, Project, Settings } from "../bindings";
-import type { Backend, DownloadEvent, JobEvent, OpenProject } from "./ipc";
+import type { Backend, DownloadEvent, JobEvent, OpenProject, TrackEvent } from "./ipc";
 
 const demucs: ModelManifest = {
   schemaVersion: 1,
@@ -56,10 +56,16 @@ let settings: Settings = {
   acceptedLicenses: [],
   libraryRetentionDays: 7,
   recentLayout: "tiles",
+  trackDownloadDir: null,
+  language: "en",
 };
 
 const projects: Project[] = [];
-const listeners = { sep: new Set<(e: JobEvent) => void>(), dl: new Set<(e: DownloadEvent) => void>() };
+const listeners = {
+  sep: new Set<(e: JobEvent) => void>(),
+  dl: new Set<(e: DownloadEvent) => void>(),
+  track: new Set<(e: TrackEvent) => void>(),
+};
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const info = (m: ModelManifest, bundled: boolean): ModelInfo => ({
   manifest: m,
@@ -150,7 +156,7 @@ export function mockBackend(): Backend {
       libraryBytes: 412_000_000,
       accelCacheBytes: 635_000_000,
       modelsBytes: 0,
-      supportedExtensions: ["mp3", "wav", "flac", "m4a", "ogg", "oga", "aac"],
+      supportedExtensions: ["mp3", "wav", "flac", "m4a", "mp4", "ogg", "oga", "aac"],
     }),
     getSettings: async () => settings,
     setSettings: async (s) => (settings = s),
@@ -181,20 +187,47 @@ export function mockBackend(): Backend {
         const emit = (e: JobEvent) => listeners.sep.forEach((l) => l(e));
         const step = (stage: "decoding" | "loading", fraction: number, detail: string, note: string | null = null) =>
           emit({ kind: "progress", jobId, stage, fraction, etaSecs: null, device: null, detail, note });
-        step("decoding", 0, `Reading “${path.split("/").pop()}”`);
+        const log = (text: string, level: "info" | "warn" = "info") => emit({ kind: "log", jobId, level, text });
+        const name = path.split("/").pop();
+        log("Model: Demucs v4 · demucs 4.0.1 · 4 networks · 4 stems (drums, bass, other, vocals)");
+        step("decoding", 0, `Reading “${name}”`);
+        log(`Opening “${name}” and decoding it to raw audio`);
         await sleep(500);
-        step("decoding", 1, "Converting to 44.1 kHz stereo");
-        await sleep(500);
+        log("Decoded 3:34 of audio · 44.1 kHz stereo · 9437184 samples per channel");
+        step("decoding", 1, "Preparing the audio for the model");
+        log("Already 44.1 kHz stereo: no conversion needed");
+        await sleep(300);
+        step("decoding", 1, "Detecting key and tempo");
+        log("Analysing the whole track for tempo and musical key");
+        await sleep(400);
+        log("Tempo 122.0 BPM · key A minor (8A)");
         const note = "First run with this model: Prism is optimizing it for your Mac. This is a one-time wait — next time it loads in seconds.";
+        log("No compiled copy found: Core ML will compile each network once and keep the result");
         for (const [i, stem] of ["Drums", "Bass", "Other", "Vocals"].entries()) {
+          if (cancelled.has(jobId)) return emit({ kind: "error", jobId, error: { kind: "cancelled", message: "Cancelled" } });
+          const what = `Model ${i + 1} of 4 (${stem.toLowerCase()})`;
           step("loading", i / 4, `Optimizing model ${i + 1} of 4 · ${stem}`, note);
+          log(`${what}: reading the weights “htdemucs_ft_${stem.toLowerCase()}.onnx” (174 MB)`);
+          log(`${what}: creating the inference session · ONNX Runtime · 10 threads · full graph optimization`);
+          log(`${what}: handing the graph to Core ML (ML Program, GPU + Neural Engine allowed)`);
+          await sleep(1100);
+          log(`Still compiling ${what.toLowerCase()} · 0:0${i + 5} so far`);
           await sleep(900);
+          log(`${what} ready in ${(2 + i * 0.7).toFixed(1)} s`);
         }
+        step("loading", 1, "Model ready");
+        log("Running on Apple Silicon (Core ML)");
+        log("Quality “Balanced”: 1 random shift pass, 25% overlap between chunks");
+        log("Cutting the track into chunks of 7.8 s and running each through the model");
         for (let i = 1; i <= 40; i++) {
           if (cancelled.has(jobId)) return emit({ kind: "error", jobId, error: { kind: "cancelled", message: "Cancelled" } });
           emit({ kind: "progress", jobId, stage: "separating", fraction: i / 40, etaSecs: (40 - i) * 0.15, device: "Apple Silicon (Core ML)", detail: "Splitting the song into 4 stems", note: null });
+          log(`Chunk ${i} of 40 · ${Math.round((i / 40) * 100)}% · 0:0${Math.floor((i * 0.15) % 10)} elapsed · about 0:0${Math.floor(((40 - i) * 0.15) % 10)} left`);
           await sleep(150);
         }
+        log("Separation finished in 0:08");
+        log("Writing 4 stems as 32-bit WAV files and drawing their waveforms");
+        log("Saved to the library");
         const p = demoProject(title);
         projects.unshift(p);
         emit({ kind: "done", jobId, project: p });
@@ -202,6 +235,46 @@ export function mockBackend(): Backend {
       return jobId;
     },
     cancelJob: async (id) => void cancelled.add(id),
+    classifyLink: async (url) => {
+      const u = url.trim();
+      if (/spotify\.(com|link)|spoti\.fi/i.test(u))
+        throw { kind: "other", message: "Spotify streams are copy-protected, so Prism can't download them. If you have the track as a file (MP3, WAV, FLAC…), drop it onto Separate instead." };
+      if (!/^https?:\/\/[^\s/]+\.[^\s/]+/i.test(u)) throw { kind: "other", message: "That doesn't look like a web link. It should start with https://" };
+      const platform = /(^|\.|\/\/)(youtube\.com|youtu\.be)/i.test(u)
+        ? "youTube"
+        : /soundcloud\.com|snd\.sc/i.test(u)
+          ? "soundCloud"
+          : /instagram\.com|instagr\.am/i.test(u)
+            ? "instagram"
+            : /tiktok\.com/i.test(u)
+              ? "tikTok"
+              : "other";
+      return { url: u, platform };
+    },
+    trackDownloadDir: async () => settings.trackDownloadDir ?? "/Users/demo/Downloads/Prism",
+    startTrackDownload: async (url) => {
+      const jobId = `track-${crypto.randomUUID()}`;
+      const link = await mockBackend().classifyLink(url);
+      void (async () => {
+        const emit = (e: TrackEvent) => listeners.track.forEach((l) => l(e));
+        const base = { kind: "progress" as const, jobId, platform: link.platform, uploader: "Demo Artist", speed: null, etaSecs: null, doneBytes: null, totalBytes: null };
+        emit({ ...base, stage: "fetch", title: null, uploader: null, fraction: null });
+        await sleep(1400);
+        const title = "Neon Skyline (Official Audio)";
+        const total = 9_400_000;
+        for (let i = 0; i <= 40; i++) {
+          if (cancelled.has(jobId)) return emit({ kind: "error", jobId, error: { kind: "cancelled", message: "Cancelled" } });
+          const f = i / 40;
+          emit({ ...base, stage: "download", title, fraction: f, doneBytes: Math.round(total * f), totalBytes: total, speed: 2_300_000, etaSecs: (1 - f) * 4 });
+          await sleep(110);
+        }
+        emit({ ...base, stage: "save", title, fraction: 1, doneBytes: total, totalBytes: total });
+        await sleep(1000);
+        emit({ kind: "done", jobId, path: "/Users/demo/Downloads/Prism/Neon Skyline (Official Audio) [x1].m4a", title, separable: true });
+      })();
+      return jobId;
+    },
+    onTrackDownload: async (cb) => (listeners.track.add(cb), () => void listeners.track.delete(cb)),
     listProjects: async () => [...projects],
     openProject: async (id): Promise<OpenProject> => {
       const project = projects.find((p) => p.id === id);
@@ -278,6 +351,7 @@ export function mockBackend(): Backend {
     pickFolder: async () => "/Users/demo/Music/Stems",
     pickSavePath: async (p) => p,
     reveal: async () => {},
+    openFolder: async () => {},
     openUrl: async (u) => void window.open(u, "_blank"),
     joinPath: (dir, name) => `${dir.replace(/\/+$/, "")}/${name}`,
     onMenu: async () => () => {},

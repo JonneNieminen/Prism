@@ -1,27 +1,31 @@
-import { AudioLines, Boxes, Metronome, CircleHelp, Keyboard, Library, Monitor, Moon, Settings2, Sun } from "lucide-react";
+import { ArrowDownToLine, AudioLines, Boxes, Metronome, CircleHelp, Keyboard, Library, Monitor, Moon, Settings2, Sun } from "lucide-react";
 import type { Theme } from "../bindings";
 import { useApp, type View } from "../store/app";
-import { SongTree, type IconType } from "./icons";
+import { StackedStems, type IconType } from "./icons";
 import { Wordmark } from "./Logo";
 import { MasterVolume } from "./MasterVolume";
 import { Segmented, cx } from "./ui";
 import { thisComputer } from "../lib/platform";
+import { mark } from "../i18n";
+import { useT } from "../i18n/useT";
 
-type Item = { view: View; label: string; icon: IconType; shortcut?: string; tip: string };
+type Item = { view: View; label: string; icon: IconType; shortcut?: string; tip: string; raw?: boolean };
 
 const MAIN: Item[] = [
-  { view: "separate", label: "Separate", icon: SongTree, shortcut: "goSeparate", tip: "Load a song and split it into stems" },
-  { view: "library", label: "Library", icon: Library, shortcut: "goLibrary", tip: "Songs you've already separated" },
-  { view: "models", label: "Models", icon: Boxes, shortcut: "goModels", tip: "Installed and downloadable models" },
-  { view: "analyze", label: "Key & BPM", icon: Metronome, shortcut: "goAnalyze", tip: "Find a song's tempo and key — no separation" },
+  { view: "separate", label: mark("Separate"), icon: StackedStems, shortcut: "goSeparate", tip: "Load a song and split it into stems" },
+  { view: "download", label: mark("Download track"), icon: ArrowDownToLine, shortcut: "goDownload", tip: "Download a track from a YouTube, SoundCloud, Instagram or TikTok link" },
+  { view: "analyze", label: mark("Key & BPM"), icon: Metronome, shortcut: "goAnalyze", tip: "Find a song's tempo and key — no separation" },
+  { view: "library", label: mark("Library"), icon: Library, shortcut: "goLibrary", tip: "Songs you've already separated" },
+  { view: "models", label: mark("Models"), icon: Boxes, shortcut: "goModels", tip: "Installed and downloadable models" },
 ];
 const MORE: Item[] = [
-  { view: "help", label: "Help", icon: CircleHelp, shortcut: "goHelp", tip: "How to use Prism" },
-  { view: "shortcuts", label: "Shortcuts", icon: Keyboard, shortcut: "goShortcuts", tip: "Every keyboard shortcut" },
-  { view: "settings", label: "Settings", icon: Settings2, shortcut: "goSettings", tip: "Preferences and storage" },
+  { view: "help", label: mark("Help"), icon: CircleHelp, shortcut: "goHelp", tip: "How to use Prism" },
+  { view: "shortcuts", label: mark("Shortcuts"), icon: Keyboard, shortcut: "goShortcuts", tip: "Every keyboard shortcut" },
+  { view: "settings", label: mark("Settings"), icon: Settings2, shortcut: "goSettings", tip: "Preferences and storage" },
 ];
 
 export function Sidebar() {
+  const { t } = useT();
   const view = useApp((s) => s.view);
   const go = useApp((s) => s.go);
   const project = useApp((s) => s.project);
@@ -37,7 +41,7 @@ export function Sidebar() {
         <button
           onClick={() => go(it.view)}
           aria-current={active ? "page" : undefined}
-          data-tip={it.tip}
+          data-tip={it.raw ? it.tip : t(it.tip)}
           data-shortcut={it.shortcut}
           className={cx(
             "flex h-[30px] w-full items-center gap-2.5 rounded-md px-2.5 text-left text-[13px] transition-colors",
@@ -46,15 +50,15 @@ export function Sidebar() {
           )}
         >
           <Icon size={15} className={cx("shrink-0", active ? "text-accent" : "text-muted")} />
-          <span className="truncate">{it.label}</span>
-          {it.view === "separate" && job && <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-label="Separation running" />}
+          <span className="truncate">{it.raw ? it.label : t(it.label)}</span>
+          {it.view === "separate" && job && <span className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-label={t("Separation running")} />}
         </button>
       </li>
     );
   };
 
   return (
-    <nav aria-label="Main" className="relative z-10 flex w-[220px] shrink-0 flex-col border-r border-border bg-sidebar px-2.5 pt-12 pb-3">
+    <nav aria-label={t("Main")} className="relative z-10 flex w-[220px] shrink-0 flex-col border-r border-border bg-sidebar px-2.5 pt-12 pb-3">
       <div data-tauri-drag-region className="absolute inset-x-0 top-0 h-12" />
       <div className="mb-5 px-2">
         <Wordmark size={24} />
@@ -63,29 +67,29 @@ export function Sidebar() {
         {row(MAIN[0])}
         {project &&
           row(
-            { view: "player", label: project.project.title, icon: AudioLines, shortcut: "goPlayer", tip: `Player · ${project.project.title}` },
+            { view: "player", label: project.project.title, icon: AudioLines, shortcut: "goPlayer", tip: `${t("Player")} · ${project.project.title}`, raw: true },
             true,
           )}
         {MAIN.slice(1).map((i) => row(i))}
       </ul>
-      <div className="mt-5 mb-1.5 px-2.5 text-[11px] font-semibold text-muted">More</div>
+      <div className="mt-5 mb-1.5 px-2.5 text-[11px] font-semibold text-muted">{t("More")}</div>
       <ul className="flex flex-col gap-0.5">{MORE.map((i) => row(i))}</ul>
 
       <div className="mt-auto flex flex-col gap-3 px-1">
         <MasterVolume />
         <Segmented<Theme>
-          label="Appearance"
+          label={t("Appearance")}
           size="sm"
           full
           value={theme}
           onChange={(v) => void update({ theme: v })}
           options={[
-            { value: "system", label: <Monitor size={13} />, aria: "Match system", tip: "Match the system appearance" },
-            { value: "light", label: <Sun size={13} />, aria: "Light", tip: "Light appearance", shortcut: "toggleTheme" },
-            { value: "dark", label: <Moon size={13} />, aria: "Dark", tip: "Dark appearance", shortcut: "toggleTheme" },
+            { value: "system", label: <Monitor size={13} />, aria: t("Match system"), tip: t("Match the system appearance") },
+            { value: "light", label: <Sun size={13} />, aria: "Light", tip: mark("Light appearance"), shortcut: "toggleTheme" },
+            { value: "dark", label: <Moon size={13} />, aria: "Dark", tip: mark("Dark appearance"), shortcut: "toggleTheme" },
           ]}
         />
-        <p className="px-1.5 text-[11px] leading-relaxed text-faint">Runs entirely on {thisComputer}. Your audio never leaves it.</p>
+        <p className="px-1.5 text-[11px] leading-relaxed text-faint">{t("Runs entirely on {computer}. Your audio never leaves it.", { computer: t(thisComputer) })}</p>
       </div>
     </nav>
   );

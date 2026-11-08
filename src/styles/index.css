@@ -45,6 +45,28 @@
     user-select: text;
     -webkit-user-select: text;
   }
+  /* Readable text is selectable and copyable: the content area, dialogs and toasts opt in.
+     Everything you press or drag (buttons, sliders, tabs, the sidebar, waveforms) stays plain. */
+  main,
+  .selectable {
+    user-select: text;
+    -webkit-user-select: text;
+    cursor: auto;
+  }
+  button,
+  select,
+  canvas,
+  svg,
+  kbd,
+  [role="button"],
+  [role="radio"],
+  [role="switch"],
+  [role="progressbar"],
+  input[type="range"],
+  [data-tauri-drag-region] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
   button {
     cursor: default;
   }

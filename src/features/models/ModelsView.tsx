@@ -7,10 +7,13 @@ import { Button, Card, Chip, Meter, ProgressBar, PageHeader, Spinner, StemChip }
 import { formatBytes } from "../../lib/format";
 import { backend, toAppError, type DownloadEvent } from "../../lib/ipc";
 import { useApp } from "../../store/app";
+import { tr } from "../../i18n";
+import { useT } from "../../i18n/useT";
 
 type Dl = { jobId: string; done: number; total: number };
 
 export function ModelsView() {
+  const { t } = useT();
   const models = useApp((s) => s.models);
   const settings = useApp((s) => s.settings)!;
   const refresh = useApp((s) => s.refreshModels);
@@ -42,9 +45,9 @@ export function ModelsView() {
           if (e.kind === "progress") return { ...d, [id]: { ...d[id], done: e.done, total: e.total } };
           const { [id]: _gone, ...rest } = d;
           if (e.kind === "done") {
-            toast({ tone: "success", title: "Model installed", body: "Checksum verified. It's ready to use." });
+            toast({ tone: "success", title: tr("Model installed"), body: tr("Checksum verified. It's ready to use.") });
             void refresh();
-          } else if (e.error.kind !== "cancelled") toast({ tone: "error", title: "Download failed", body: e.error.message });
+          } else if (e.error.kind !== "cancelled") toast({ tone: "error", title: tr("Download failed"), body: e.error.message });
           return rest;
         });
       });
@@ -65,10 +68,10 @@ export function ModelsView() {
     setImporting(true);
     try {
       const m = await b.importModel(path);
-      toast({ tone: "success", title: `Imported “${m.name}”`, body: m.stems.map((s) => s.label).join(", ") });
+      toast({ tone: "success", title: t("Imported “{name}”", { name: m.name }), body: m.stems.map((s) => s.label).join(", ") });
       await refresh();
     } catch (e) {
-      toast({ tone: "error", title: "Couldn't import the model", body: toAppError(e).message });
+      toast({ tone: "error", title: t("Couldn't import the model"), body: toAppError(e).message });
     } finally {
       setImporting(false);
     }
@@ -80,21 +83,21 @@ export function ModelsView() {
   return (
     <div className="mx-auto max-w-[1000px] py-10">
       <PageHeader
-        title="Models"
-        subtitle="Separation models run locally. Add your own or download more."
+        title={t("Models")}
+        subtitle={t("Separation models run locally. Add your own or download more.")}
         right={
           <div className="flex gap-2">
-            <Button size="sm" icon={importing ? <Spinner /> : <FolderOpen size={13} />} onClick={() => void importModel("folder")} disabled={importing} tip="Add a model folder containing model.json and .onnx weights">
-              Import folder
+            <Button size="sm" icon={importing ? <Spinner /> : <FolderOpen size={13} />} onClick={() => void importModel("folder")} disabled={importing} tip={t("Add a model folder containing model.json and .onnx weights")}>
+              {t("Import folder")}
             </Button>
-            <Button size="sm" icon={<Package size={13} />} onClick={() => void importModel("zip")} disabled={importing} tip="Add a model packaged as a .zip">
-              Import .zip
+            <Button size="sm" icon={<Package size={13} />} onClick={() => void importModel("zip")} disabled={importing} tip={t("Add a model packaged as a .zip")}>
+              {t("Import .zip")}
             </Button>
           </div>
         }
       />
 
-      <h2 className="mb-3 text-sm font-medium text-muted">Installed</h2>
+      <h2 className="mb-3 text-sm font-medium text-muted">{t("Installed")}</h2>
       <div className="grid gap-3">
         {models?.listing.models.map((m, i) => (
           <motion.div key={m.manifest.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
@@ -128,9 +131,9 @@ export function ModelsView() {
       </div>
 
       <div className="mt-10 mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-medium text-muted">Catalog</h2>
-        <button className="flex items-center gap-1.5 text-[13px] text-muted hover:text-text" onClick={() => void loadCatalog()} data-tip="Reload the model catalog">
-          <RefreshCw size={13} /> Refresh
+        <h2 className="text-sm font-medium text-muted">{t("Catalog")}</h2>
+        <button className="flex items-center gap-1.5 text-[13px] text-muted hover:text-text" onClick={() => void loadCatalog()} data-tip={t("Reload the model catalog")}>
+          <RefreshCw size={13} /> {t("Refresh")}
         </button>
       </div>
       {catalog === "loading" ? (
@@ -143,11 +146,11 @@ export function ModelsView() {
         <Card className="flex items-center gap-4 p-5">
           <CloudOff size={22} className="shrink-0 text-muted" />
           <div className="flex-1 text-sm">
-            <div className="font-medium">The catalog isn't reachable right now</div>
-            <div className="mt-0.5 text-muted">Prism works fully offline — this only affects downloading new models. {catalog.error}</div>
+            <div className="font-medium">{t("The catalog isn't reachable right now")}</div>
+            <div className="mt-0.5 text-muted">{t("Prism works fully offline — this only affects downloading new models.")} {catalog.error}</div>
           </div>
-          <Button size="sm" onClick={() => void loadCatalog()} tip="Try reaching the catalog again">
-            Retry
+          <Button size="sm" onClick={() => void loadCatalog()} tip={t("Try reaching the catalog again")}>
+            {t("Retry")}
           </Button>
         </Card>
       ) : (
@@ -162,14 +165,14 @@ export function ModelsView() {
                   <div className="flex shrink-0 flex-col items-end gap-2">
                     <span className="text-xs text-muted">{formatBytes(e.files.reduce((a, f) => a + f.bytes, 0))}</span>
                     {installed ? (
-                      <Chip color="var(--success)" tip="Already installed">Installed</Chip>
+                      <Chip color="var(--success)" tip={t("Already installed")}>{t("Installed")}</Chip>
                     ) : dl ? (
-                      <Button size="sm" variant="ghost" icon={<X size={13} />} onClick={() => void backend().then((b) => b.cancelJob(dl.jobId))} tip="Stop the download. Nothing is installed.">
-                        Cancel
+                      <Button size="sm" variant="ghost" icon={<X size={13} />} onClick={() => void backend().then((b) => b.cancelJob(dl.jobId))} tip={t("Stop the download. Nothing is installed.")}>
+                        {t("Cancel")}
                       </Button>
                     ) : (
-                      <Button size="sm" variant="primary" icon={<Download size={13} />} onClick={() => void install(e)} tip="Download over HTTPS and verify its checksum before installing">
-                        Download
+                      <Button size="sm" variant="primary" icon={<Download size={13} />} onClick={() => void install(e)} tip={t("Download over HTTPS and verify its checksum before installing")}>
+                        {t("Download")}
                       </Button>
                     )}
                   </div>
@@ -177,9 +180,9 @@ export function ModelsView() {
                 <AnimatePresence>
                   {dl && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                      <ProgressBar className="mt-4" value={dl.total ? dl.done / dl.total : 0} label={`Downloading ${e.manifest.name}`} />
+                      <ProgressBar className="mt-4" value={dl.total ? dl.done / dl.total : 0} label={t("Downloading {name}", { name: e.manifest.name })} />
                       <div className="mt-1.5 text-right text-xs text-muted tabular">
-                        {formatBytes(dl.done)} of {formatBytes(dl.total)} · verified with SHA-256 before install
+                        {t("{done} of {total} · verified with SHA-256 before install", { done: formatBytes(dl.done), total: formatBytes(dl.total) })}
                       </div>
                     </motion.div>
                   )}
@@ -187,39 +190,38 @@ export function ModelsView() {
               </Card>
             );
           })}
-          {catalog.entries.length === 0 && <p className="text-sm text-muted">The catalog has no models yet.</p>}
+          {catalog.entries.length === 0 && <p className="text-sm text-muted">{t("The catalog has no models yet.")}</p>}
           {catalog.warnings.length > 0 && <p className="text-xs text-muted">{catalog.warnings.length} catalog entries were skipped because they failed validation.</p>}
         </div>
       )}
 
       <p className="mt-8 flex items-start gap-2 text-xs leading-relaxed text-muted">
         <ShieldCheck size={14} className="mt-0.5 shrink-0" />
-        Prism only runs ONNX models, which can't execute code when loaded. Pickled PyTorch checkpoints (.pt, .th, .ckpt) are refused. Downloads use HTTPS and are
-        checked against their SHA-256 before they can be used.
+        {t("Prism only runs ONNX models, which can't execute code when loaded. Pickled PyTorch checkpoints (.pt, .th, .ckpt) are refused. Downloads use HTTPS and are checked against their SHA-256 before they can be used.")}
       </p>
 
-      <Modal open={!!removing} onClose={() => setRemoving(null)} title="Remove this model?">
+      <Modal open={!!removing} onClose={() => setRemoving(null)} title={t("Remove this model?")}>
         <p className="text-sm text-muted">“{removing?.manifest.name}” and its weights ({formatBytes(removing?.sizeBytes ?? 0)}) will be deleted. Songs you already separated with it stay in your library.</p>
         <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setRemoving(null)} data-autofocus shortcut="closeDialog" tip="Keep the model">
-            Cancel
+          <Button variant="ghost" onClick={() => setRemoving(null)} data-autofocus shortcut="closeDialog" tip={t("Keep the model")}>
+            {t("Cancel")}
           </Button>
           <Button
             variant="danger"
-            tip="Delete the model and its weights"
+            tip={t("Delete the model and its weights")}
             onClick={async () => {
               const m = removing!;
               setRemoving(null);
               try {
                 await (await backend()).removeModel(m.manifest.id);
                 await refresh();
-                toast({ tone: "success", title: `Removed “${m.manifest.name}”` });
+                toast({ tone: "success", title: t("Removed “{name}”", { name: m.manifest.name }) });
               } catch (e) {
-                toast({ tone: "error", title: "Couldn't remove the model", body: toAppError(e).message });
+                toast({ tone: "error", title: t("Couldn't remove the model"), body: toAppError(e).message });
               }
             }}
           >
-            Remove
+            {t("Remove")}
           </Button>
         </div>
       </Modal>
@@ -228,15 +230,16 @@ export function ModelsView() {
 }
 
 function ModelSummary({ manifest: m, nonCommercial }: { manifest: CatalogEntry["manifest"]; nonCommercial: boolean }) {
+  const { t } = useT();
   return (
     <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{m.name}</span>
         {m.version && <span className="text-xs text-muted">v{m.version}</span>}
-        <Chip tip={`Runs with the ${m.architecture} adapter`}>{m.architecture}</Chip>
+        <Chip tip={t("Runs with the {architecture} adapter", { architecture: m.architecture })}>{m.architecture}</Chip>
         {nonCommercial && (
-          <Chip color="var(--warning)" tip="Its license doesn't allow commercial use of the output">
-            Non-commercial
+          <Chip color="var(--warning)" tip={t("Its license doesn't allow commercial use of the output")}>
+            {t("Non-commercial")}
           </Chip>
         )}
       </div>
@@ -252,8 +255,8 @@ function ModelSummary({ manifest: m, nonCommercial }: { manifest: CatalogEntry["
         </span>
         {m.hints && (
           <>
-            <Meter label="Speed" value={m.hints.speed} />
-            <Meter label="Quality" value={m.hints.quality} />
+            <Meter label={t("Speed")} value={m.hints.speed} />
+            <Meter label={t("Quality")} value={m.hints.quality} />
           </>
         )}
       </div>
@@ -278,21 +281,22 @@ function ModelCard({
   onToggleHidden: () => void;
   onRemove: () => void;
 }) {
+  const { t } = useT();
   return (
     <Card className="p-5" style={{ opacity: hidden ? 0.6 : 1 }}>
       <div className="flex items-start gap-4">
         <ModelSummary manifest={m.manifest} nonCommercial={m.nonCommercial} />
         <div className="flex shrink-0 flex-col items-end gap-2">
           <div className="flex gap-1.5">
-            {m.bundled && <Chip tip="Ships with Prism and works offline">Built-in</Chip>}
-            {active && <Chip color="var(--accent)" tip="Used for new separations">Active</Chip>}
-            {hidden && <Chip>Hidden</Chip>}
+            {m.bundled && <Chip tip={t("Ships with Prism and works offline")}>{t("Built-in")}</Chip>}
+            {active && <Chip color="var(--accent)" tip={t("Used for new separations")}>{t("Active")}</Chip>}
+            {hidden && <Chip>{t("Hidden")}</Chip>}
           </div>
           <span className="text-xs text-muted">{formatBytes(m.sizeBytes)}</span>
           <div className="flex gap-1">
             {!active && !hidden && !m.problem && (
-              <Button size="sm" onClick={onUse} tip="Make this the model for new separations">
-                Use
+              <Button size="sm" onClick={onUse} tip={t("Make this the model for new separations")}>
+                {t("Use")}
               </Button>
             )}
             {m.bundled ? (
@@ -302,13 +306,13 @@ function ModelCard({
                 icon={hidden ? <Eye size={14} /> : <EyeOff size={14} />}
                 onClick={onToggleHidden}
                 disabled={!hidden && lastVisible}
-                tip={!hidden && lastVisible ? "At least one model must stay available" : hidden ? "Show this model in the model picker" : "Hide from the model picker (built-in models can't be deleted)"}
+                tip={!hidden && lastVisible ? t("At least one model must stay available") : hidden ? t("Show this model in the model picker") : t("Hide from the model picker (built-in models can't be deleted)")}
               >
-                {hidden ? "Show" : "Hide"}
+                {hidden ? t("Show") : t("Hide")}
               </Button>
             ) : (
-              <Button size="sm" variant="ghost" icon={<Trash2 size={13} />} onClick={onRemove} aria-label={`Remove ${m.manifest.name}`} tip="Delete this model and its weights">
-                Remove
+              <Button size="sm" variant="ghost" icon={<Trash2 size={13} />} onClick={onRemove} aria-label={t("Remove {name}", { name: m.manifest.name })} tip={t("Delete this model and its weights")}>
+                {t("Remove")}
               </Button>
             )}
           </div>

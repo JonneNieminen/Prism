@@ -21,6 +21,17 @@ pub enum Theme {
     Light,
 }
 
+/// The language of the interface. English is the default; it is never picked from the system.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum Language {
+    #[default]
+    En,
+    Fi,
+    Sv,
+}
+
 /// How the "Recent" songs on the Separate screen are shown.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, TS, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
@@ -52,6 +63,9 @@ pub struct Settings {
     /// Delete library songs after this many days; 0 keeps them forever.
     pub library_retention_days: u32,
     pub recent_layout: RecentLayout,
+    /// Where downloaded tracks are saved; `None` means the "Prism" folder inside Downloads.
+    pub track_download_dir: Option<String>,
+    pub language: Language,
 }
 
 impl Default for Settings {
@@ -69,6 +83,8 @@ impl Default for Settings {
             accepted_licenses: vec![],
             library_retention_days: DEFAULT_LIBRARY_RETENTION_DAYS,
             recent_layout: RecentLayout::Tiles,
+            track_download_dir: None,
+            language: Language::En,
         }
     }
 }

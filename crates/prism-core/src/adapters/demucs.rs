@@ -79,8 +79,10 @@ impl Demucs {
                 (Some((i, _)), None) if files.len() > 1 => m.stems.get(i).map(|s| s.label.clone()),
                 _ => None,
             };
-            on_step(LoadStep { index, total: files.len(), stem });
-            let (s, d) = session(&dir.join(&wf.file), rt)?;
+            let path = dir.join(&wf.file);
+            let bytes = std::fs::metadata(&path).map_or(0, |m| m.len());
+            on_step(LoadStep { index, total: files.len(), stem, file: wf.file.clone(), bytes });
+            let (s, d) = session(&path, rt)?;
             device = d;
             models.push((s, w));
         }

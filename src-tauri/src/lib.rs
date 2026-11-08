@@ -4,6 +4,7 @@
 mod jobs;
 mod menu;
 mod state;
+mod track;
 
 use std::path::PathBuf;
 
@@ -76,8 +77,16 @@ fn get_settings(state: State<'_, AppState>) -> Settings {
 }
 
 #[tauri::command]
-fn set_settings(state: State<'_, AppState>, settings: Settings) -> Res<Settings> {
-    state.save_settings(settings).map_err(app_err)
+fn set_settings(app: AppHandle, state: State<'_, AppState>, settings: Settings) -> Res<Settings> {
+    let before = state.settings().language;
+    let saved = state.save_settings(settings).map_err(app_err)?;
+    // The menu bar is native, so it is rebuilt in the new language.
+    if saved.language != before
+        && let Ok(menu) = menu::build(&app, saved.language)
+    {
+        let _ = app.set_menu(menu);
+    }
+    Ok(saved)
 }
 
 #[derive(Serialize)]
@@ -137,6 +146,41 @@ fn start_separation(
     quality: Quality,
 ) -> Res<String> {
     jobs::start_separation(app, state.inner().clone(), PathBuf::from(path), model_id, quality).map_err(app_err)
+}
+
+/// Recognise the platform of a pasted link (or say why it can't be downloaded).
+#[tauri::command]
+fn classify_link(url: String) -> Res<prism_core::track::Link> {
+    prism_core::track::classify(&url).map_err(app_err)
+}
+
+#[tauri::command]
+fn start_track_download(app: AppHandle, state: State<'_, AppState>, url: String) -> Res<String> {
+    track::start(app, state.inner().clone(), url).map_err(app_err)
+}
+
+/// Open a folder in the system file manager (Finder, Explorer, …). `create` makes it first, for
+/// folders Prism hasn't written to yet, like the default download folder.
+#[tauri::command]
+fn open_folder(app: AppHandle, path: String, create: bool) -> Res<()> {
+    use tauri_plugin_opener::OpenerExt;
+    let dir = PathBuf::from(&path);
+    if create {
+        std::fs::create_dir_all(&dir)
+            .map_err(|e| app_err(PrismError::Io(format!("Couldn't create the folder “{path}”: {e}"))))?;
+    }
+    if !dir.is_dir() {
+        return Err(app_err(PrismError::Io(format!("The folder “{path}” doesn't exist."))));
+    }
+    app.opener()
+        .open_path(path, None::<String>)
+        .map_err(|e| app_err(PrismError::Other(format!("Couldn't open the folder: {e}"))))
+}
+
+/// Where downloads go right now (the setting, or the default).
+#[tauri::command]
+fn track_download_dir(app: AppHandle, state: State<'_, AppState>) -> Res<String> {
+    track::download_dir(&app, &state).map(|p| p.display().to_string()).map_err(app_err)
 }
 
 #[tauri::command]
@@ -357,8 +401,9 @@ pub fn run() {
                     sweeper.purge_expired();
                 }
             });
+            let lang = st.settings().language;
             app.manage(st);
-            let m = menu::build(app.handle())?;
+            let m = menu::build(app.handle(), lang)?;
             app.set_menu(m)?;
             app.on_menu_event(|app, e| menu::forward(app, e.id().as_ref()));
             Ok(())
@@ -372,6 +417,10 @@ pub fn run() {
             analyze_track,
             start_separation,
             cancel_job,
+            classify_link,
+            start_track_download,
+            track_download_dir,
+            open_folder,
             list_projects,
             open_project,
             detect_music,

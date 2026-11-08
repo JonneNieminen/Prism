@@ -13,7 +13,7 @@ shot() { # <name> <query> <w> <h>
 }
 for t in dark light; do
   shot "banner-$t" "art=hero&theme=$t" 1280 440
-  for c in separate mix export private; do shot "card-$c-$t" "art=$c&theme=$t" 640 400; done
+  for c in separate download mix export languages private; do shot "card-$c-$t" "art=$c&theme=$t" 640 400; done
 done
 shot social-preview "art=social&theme=dark" 1280 640
 echo "rendered → docs/art"

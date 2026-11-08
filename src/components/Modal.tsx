@@ -53,7 +53,7 @@ export function Modal({
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className="relative w-full rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-pop)]"
+            className="selectable relative w-full rounded-xl border border-border bg-surface p-5 shadow-[var(--shadow-pop)]"
             style={{ maxWidth: width }}
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

@@ -4,6 +4,7 @@
 // (src-tauri/src/menu.rs) mirrors the "mod" ones with CmdOrCtrl — keep both in sync
 // (and the README table).
 
+import { mark } from "../i18n";
 import { isMac, platform, type Platform } from "./platform";
 
 export type CommandId =
@@ -18,6 +19,7 @@ export type CommandId =
   | "goLibrary"
   | "goModels"
   | "goAnalyze"
+  | "goDownload"
   | "goSettings"
   | "goHelp"
   | "goShortcuts"
@@ -58,49 +60,50 @@ export type Shortcut = {
 };
 
 const ALL_SHORTCUTS: Shortcut[] = [
-  { id: "open", label: "Open a song…", keys: ["mod", "O"], group: "General" },
-  { id: "separate", label: "Start separation", keys: ["mod", "↩"], group: "General" },
-  { id: "cancel", label: "Cancel separation", keys: ["mod", "."], group: "General" },
-  { id: "exportMix", label: "Export current mix…", keys: ["mod", "E"], group: "General" },
-  { id: "exportStems", label: "Export all stems (.zip)…", keys: ["shift", "mod", "E"], group: "General" },
-  { id: "toggleTheme", label: "Switch light / dark appearance", keys: ["shift", "mod", "L"], group: "General" },
-  { id: "goShortcuts", label: "Show keyboard shortcuts", keys: ["mod", "/"], group: "General" },
-  { id: "goHelp", label: "Open Prism Help", keys: ["shift", "mod", "/"], group: "General" },
-  { id: "closeDialog", label: "Close dialog", keys: ["esc"], group: "General" },
+  { id: "open", label: mark("Open a song…"), keys: ["mod", "O"], group: "General" },
+  { id: "separate", label: mark("Start separation"), keys: ["mod", "↩"], group: "General" },
+  { id: "cancel", label: mark("Cancel separation"), keys: ["mod", "."], group: "General" },
+  { id: "exportMix", label: mark("Export current mix…"), keys: ["mod", "E"], group: "General" },
+  { id: "exportStems", label: mark("Export all stems (.zip)…"), keys: ["shift", "mod", "E"], group: "General" },
+  { id: "toggleTheme", label: mark("Switch light / dark appearance"), keys: ["shift", "mod", "L"], group: "General" },
+  { id: "goShortcuts", label: mark("Show keyboard shortcuts"), keys: ["mod", "/"], group: "General" },
+  { id: "goHelp", label: mark("Open Prism Help"), keys: ["shift", "mod", "/"], group: "General" },
+  { id: "closeDialog", label: mark("Close dialog"), keys: ["esc"], group: "General" },
 
-  { id: "goSeparate", label: "Separate", keys: ["mod", "1"], group: "Navigation" },
-  { id: "goPlayer", label: "Player (open song)", keys: ["mod", "2"], group: "Navigation" },
-  { id: "goLibrary", label: "Library", keys: ["mod", "3"], group: "Navigation" },
-  { id: "goModels", label: "Models", keys: ["mod", "4"], group: "Navigation" },
-  { id: "goAnalyze", label: "Key & BPM", keys: ["mod", "5"], group: "Navigation" },
-  { id: "goSettings", label: "Settings", keys: ["mod", ","], group: "Navigation" },
+  { id: "goSeparate", label: mark("Separate"), keys: ["mod", "1"], group: "Navigation" },
+  { id: "goPlayer", label: mark("Player (open song)"), keys: ["mod", "2"], group: "Navigation" },
+  { id: "goLibrary", label: mark("Library"), keys: ["mod", "3"], group: "Navigation" },
+  { id: "goModels", label: mark("Models"), keys: ["mod", "4"], group: "Navigation" },
+  { id: "goAnalyze", label: mark("Key & BPM"), keys: ["mod", "5"], group: "Navigation" },
+  { id: "goDownload", label: mark("Download track"), keys: ["mod", "6"], group: "Navigation" },
+  { id: "goSettings", label: mark("Settings"), keys: ["mod", ","], group: "Navigation" },
 
-  { id: "masterUp", label: "Master volume up", keys: ["mod", "↑"], group: "Master volume" },
-  { id: "masterDown", label: "Master volume down", keys: ["mod", "↓"], group: "Master volume" },
-  { id: "masterMute", label: "Mute / unmute master", keys: ["M"], group: "Master volume" },
+  { id: "masterUp", label: mark("Master volume up"), keys: ["mod", "↑"], group: "Master volume" },
+  { id: "masterDown", label: mark("Master volume down"), keys: ["mod", "↓"], group: "Master volume" },
+  { id: "masterMute", label: mark("Mute / unmute master"), keys: ["M"], group: "Master volume" },
 
-  { id: "playPause", label: "Play / pause", keys: ["space"], group: "Player" },
-  { id: "seekBack", label: "Back 5 seconds", keys: ["←"], group: "Player" },
-  { id: "seekForward", label: "Forward 5 seconds", keys: ["→"], group: "Player" },
-  { id: "seekBackLong", label: "Back 15 seconds", keys: ["shift", "←"], group: "Player" },
-  { id: "seekForwardLong", label: "Forward 15 seconds", keys: ["shift", "→"], group: "Player" },
-  { id: "toStart", label: "Go to start", keys: ["0"], group: "Player" },
-  { id: "loopIn", label: "Loop from here (set start)", keys: ["I"], group: "Player" },
-  { id: "loopOut", label: "Loop up to here (set end)", keys: ["O"], group: "Player" },
-  { id: "loopToggle", label: "Loop on / off", keys: ["L"], group: "Player" },
+  { id: "playPause", label: mark("Play / pause"), keys: ["space"], group: "Player" },
+  { id: "seekBack", label: mark("Back 5 seconds"), keys: ["←"], group: "Player" },
+  { id: "seekForward", label: mark("Forward 5 seconds"), keys: ["→"], group: "Player" },
+  { id: "seekBackLong", label: mark("Back 15 seconds"), keys: ["shift", "←"], group: "Player" },
+  { id: "seekForwardLong", label: mark("Forward 15 seconds"), keys: ["shift", "→"], group: "Player" },
+  { id: "toStart", label: mark("Go to start"), keys: ["0"], group: "Player" },
+  { id: "loopIn", label: mark("Loop from here (set start)"), keys: ["I"], group: "Player" },
+  { id: "loopOut", label: mark("Loop up to here (set end)"), keys: ["O"], group: "Player" },
+  { id: "loopToggle", label: mark("Loop on / off"), keys: ["L"], group: "Player" },
 
-  { id: "muteStem", label: "Mute / unmute stem 1–9", keys: ["1", "–", "9"], group: "Stems" },
-  { id: "soloStem", label: "Solo stem 1–9", keys: ["shift", "1", "–", "9"], group: "Stems" },
-  { id: "karaoke", label: "Karaoke (remove vocals)", keys: ["K"], group: "Stems" },
-  { id: "acapella", label: "A cappella (vocals only)", keys: ["A"], group: "Stems" },
-  { id: "resetMix", label: "Reset mix", keys: ["R"], group: "Stems" },
+  { id: "muteStem", label: mark("Mute / unmute stem 1–9"), keys: ["1", "–", "9"], group: "Stems" },
+  { id: "soloStem", label: mark("Solo stem 1–9"), keys: ["shift", "1", "–", "9"], group: "Stems" },
+  { id: "karaoke", label: mark("Karaoke (remove vocals)"), keys: ["K"], group: "Stems" },
+  { id: "acapella", label: mark("A cappella (vocals only)"), keys: ["A"], group: "Stems" },
+  { id: "resetMix", label: mark("Reset mix"), keys: ["R"], group: "Stems" },
 
-  { id: "minimize", label: "Minimize window", keys: ["mod", "M"], group: "Window", systemOnly: true, platforms: ["mac"] },
-  { id: "fullscreen", label: "Enter / exit full screen", keys: ["ctrl", "mod", "F"], group: "Window", systemOnly: true, platforms: ["mac"] },
-  { id: "fullscreen", label: "Enter / exit full screen", keys: ["F11"], group: "Window", platforms: ["windows", "linux"] },
-  { id: "hide", label: "Hide Prism", keys: ["mod", "H"], group: "Window", systemOnly: true, platforms: ["mac"] },
-  { id: "quit", label: "Quit Prism", keys: ["mod", "Q"], group: "Window", systemOnly: true, platforms: ["mac", "linux"] },
-  { id: "quit", label: "Quit Prism", keys: ["alt", "F4"], group: "Window", systemOnly: true, platforms: ["windows"] },
+  { id: "minimize", label: mark("Minimize window"), keys: ["mod", "M"], group: "Window", systemOnly: true, platforms: ["mac"] },
+  { id: "fullscreen", label: mark("Enter / exit full screen"), keys: ["ctrl", "mod", "F"], group: "Window", systemOnly: true, platforms: ["mac"] },
+  { id: "fullscreen", label: mark("Enter / exit full screen"), keys: ["F11"], group: "Window", platforms: ["windows", "linux"] },
+  { id: "hide", label: mark("Hide Prism"), keys: ["mod", "H"], group: "Window", systemOnly: true, platforms: ["mac"] },
+  { id: "quit", label: mark("Quit Prism"), keys: ["mod", "Q"], group: "Window", systemOnly: true, platforms: ["mac", "linux"] },
+  { id: "quit", label: mark("Quit Prism"), keys: ["alt", "F4"], group: "Window", systemOnly: true, platforms: ["windows"] },
 ];
 
 /** The shortcuts that exist on this OS. */
@@ -153,13 +156,13 @@ export function matchEvent(e: KeyboardEvent): { id: CommandId } | { id: "muteSte
     if (e.key === "ArrowDown" && !e.shiftKey) return { id: "masterDown" };
     if (k === "o" && !e.shiftKey) return { id: "open" };
     if (k === "enter") return { id: "separate" };
-    if (k === ".") return { id: "cancel" };
+    if (k === "." || e.code === "Period") return { id: "cancel" };
     if (k === "e") return { id: e.shiftKey ? "exportStems" : "exportMix" };
     if (k === "l" && e.shiftKey) return { id: "toggleTheme" };
     if (e.code === "Slash") return { id: e.shiftKey ? "goHelp" : "goShortcuts" };
-    if (k === ",") return { id: "goSettings" };
-    const nav = ["goSeparate", "goPlayer", "goLibrary", "goModels", "goAnalyze"] as const;
-    const d = /^Digit([1-5])$/.exec(e.code);
+    if (k === "," || e.code === "Comma") return { id: "goSettings" };
+    const nav = ["goSeparate", "goPlayer", "goLibrary", "goModels", "goAnalyze", "goDownload"] as const;
+    const d = /^Digit([1-6])$/.exec(e.code);
     if (d && !e.shiftKey) return { id: nav[Number(d[1]) - 1] };
     return null;
   }

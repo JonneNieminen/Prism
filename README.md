@@ -11,6 +11,7 @@
 [![Release](https://img.shields.io/github/v/release/JonneNieminen/Prism?filter=v*&label=release&color=5a60c8)](https://github.com/JonneNieminen/Prism/releases/latest)
 [![License: MIT](https://img.shields.io/github/license/JonneNieminen/Prism?color=5a60c8)](LICENSE)
 ![Platforms](https://img.shields.io/badge/platforms-macOS%20·%20Windows%20·%20Linux-1d1d1f)
+![Interface](https://img.shields.io/badge/interface-English%20·%20Suomi%20·%20Svenska-5a60c8)
 <br/>
 ![Top language](https://img.shields.io/github/languages/top/JonneNieminen/Prism?color=dea584)
 ![Languages](https://img.shields.io/github/languages/count/JonneNieminen/Prism)
@@ -38,6 +39,10 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
   </tr>
   <tr>
     <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-export-light.png" /><img src="docs/art/card-export-dark.png" alt="Export a stem, all stems or your mix" /></picture></td>
+    <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-download-light.png" /><img src="docs/art/card-download-dark.png" alt="Download a track from a link" /></picture></td>
+  </tr>
+  <tr>
+    <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-languages-light.png" /><img src="docs/art/card-languages-dark.png" alt="English, Finnish and Swedish" /></picture></td>
     <td width="50%"><picture><source media="(prefers-color-scheme: light)" srcset="docs/art/card-private-light.png" /><img src="docs/art/card-private-dark.png" alt="Private by design: runs on your computer" /></picture></td>
   </tr>
 </table>
@@ -45,6 +50,7 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 ## Features
 
 - **Separate** MP3, WAV, FLAC, M4A (AAC/ALAC) and OGG into stems with Demucs v4 — bundled, works offline from the first launch.
+- **See what's happening**: a spinner, a step list and a live log under it say exactly what Prism is doing — decoding, compiling the model, each chunk — and **Cancel** takes effect at once.
 - **Queue songs**: drop several at once, or drop more while one is separating; they run one after another and land in the Library.
 - **Remove or isolate instruments** live: mute, solo and set the volume of each stem; one-click *Karaoke* and *A cappella*.
 - **Synced multi-stem player** with a shared playhead, waveforms and full keyboard control.
@@ -52,17 +58,27 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 - **Export** a single stem, all stems as a `.zip`, or exactly the mix you hear — WAV (24-bit), FLAC or MP3 (128–320 kbps).
 - **Key and tempo detection**: every song gets an estimated BPM and musical key (with the Camelot code), shown in the player header and the library. Songs separated earlier get it when you open them.
 - **Master volume**: one slider and a sound on/off switch in the sidebar, available in every view and remembered between launches.
+- **Download a track** from a YouTube, SoundCloud, Instagram or TikTok link (or any other link the bundled downloader can read) straight into Separate, with an animated step-by-step view. Spotify's copy-protected streams are refused. Only download what you have the right to.
 - **Key & BPM**: a separate tool that finds a song's tempo and key (with Camelot code) in seconds, no separation needed.
 - **Library** of past separations that reopen instantly, remembering which model made them.
 - **Pluggable models**: import your own ONNX models, or download more from a checksum-verified catalog (6-stem Demucs, fine-tuned Demucs, MDX-Net vocal and instrumental models).
 - **Fast on Apple Silicon** via Core ML — about 11× realtime on an M1 Pro — with automatic CPU fallback.
 - **macOS, Windows and Linux** (x64 and ARM). Windows and Linux separate on the CPU.
+- **English, Finnish and Swedish**: pick the language in Settings (English is the default); the menu bar follows it. Text anywhere in the app can be selected and copied.
 - **Native feel**: light and dark appearance, a full menu bar, tooltips on every control, in-app Help and a Shortcuts reference.
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/separate-dark.png" alt="Drop a song to separate" /></td>
+    <td><img src="docs/screenshots/separating-dark.png" alt="Separating: spinner, live log and steps" /></td>
+    <td><img src="docs/screenshots/download-dark.png" alt="Downloading a track from a link" /></td>
+  </tr>
+  <tr>
     <td><img src="docs/screenshots/player-light.png" alt="Player in light appearance" /></td>
+    <td><img src="docs/screenshots/library-dark.png" alt="Library of separated songs" /></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/separate-fi-dark.png" alt="The Separate screen in Finnish" /></td>
+    <td><img src="docs/screenshots/settings-dark.png" alt="Settings with language, folders and storage" /></td>
   </tr>
   <tr>
     <td><img src="docs/screenshots/models-light.png" alt="Model manager with catalog" /></td>
@@ -101,9 +117,15 @@ Drop several songs at once — or more songs while one is separating — and the
 | **Balanced** | One shifted pass, standard overlap — the default | ≈ 25 s |
 | **Best** | Averages three shifted passes for the cleanest stems | ≈ 70 s |
 
-> The first separation with a model on Apple Silicon takes about a minute longer while macOS optimizes the model for your Mac. It's cached afterwards. You can keep using Prism while it runs, and cancel with **⌘.**.
+> The first separation with a model takes longer while your Mac optimizes the model for its hardware — about a minute, and several minutes for a fine-tuned model, which has four networks. It's a one-time wait: the result is cached. The log under the spinner shows each step, you can keep using Prism while it runs, and **⌘.** cancels right away.
 
-### 2. Mix the stems
+### 2. Download a track from a link
+
+Open **Download track**, paste a link and press **Download**. Prism names the platform (YouTube, SoundCloud, Instagram, TikTok, or just *Link*), then shows the steps — check the link, find the track, download the audio, save it — while an animation lays the waveform down as the file arrives. When it's done, **Separate this** loads the file into Separate, and **Show in Finder** (or *Explorer*) opens the folder. Choose where tracks are saved in *Settings → Downloads* (default: `Downloads/Prism`).
+
+Downloads use the bundled [yt-dlp](https://github.com/yt-dlp/yt-dlp). Only download what you have the right to — your own uploads, tracks with a licence that allows it, or music offered for free — and follow each site's terms. Spotify links are refused because Spotify's streams are copy-protected.
+
+### 3. Mix the stems
 
 When separation finishes the player opens. Every stem plays in sync.
 
@@ -114,7 +136,7 @@ When separation finishes the player opens. Every stem plays in sync.
 - **Loop a part**: hold **Shift** and drag across a waveform, or press **I** at the start and **O** at the end. **L** turns the loop on and off, and the **×** next to it clears it. All stems loop together, sample-accurately.
 - Prism remembers each song's mix and loop, so it sounds the way you left it when you reopen it from the Library.
 
-### 3. Export
+### 4. Export
 
 - **Export mix** (**⌘E**) saves exactly what you hear as one file.
 - **Download all stems** (**⇧⌘E**) saves a `.zip` with one file per stem.
@@ -127,7 +149,8 @@ Files are named like `Song Title - vocals.wav`. Choose a default save folder in 
 
 - **Library** keeps your separations, so reopening a song is instant. Type in its search field to find a song by title, artist, key (*A minor*, *8A*) or tempo. To save disk space songs are deleted after 7 days by default — choose another period or *Never* in *Settings → Storage → Delete old songs*.
 - **Models** lists installed models (stems, size, license, speed/quality) and a catalog of downloadable ones. Downloads use HTTPS and are SHA-256 verified before use. A model's license is shown before its first use, and non-commercial licenses are flagged.
-- **Settings**: default model and quality, hardware acceleration, export format and bitrate, default save folder, appearance, storage and catalog URL.
+- **Settings**: default model and quality, hardware acceleration, export format and bitrate, default save folder, track download folder, appearance, **language**, storage and catalog URL. Each folder has a *Show in Finder* (*Explorer* on Windows) button.
+- **Language**: English, Suomi or Svenska, in *Settings → Appearance → Language*. English is the default. Prism's own messages follow it; technical log lines and the engine's error messages stay in English.
 - **Appearance**: match macOS, Light or Dark — from the sidebar, *View → Appearance*, Settings, or **⇧⌘L**.
 
 ## Keyboard shortcuts
@@ -145,7 +168,7 @@ Prism shows the shortcuts for your system: hover any button to see its shortcut,
 | Keyboard shortcuts | **⌘/** | **Ctrl+/** |
 | Prism Help | **⇧⌘/** | **Ctrl+Shift+/** |
 | Close dialog | **Esc** | **Esc** |
-| Separate · Player · Library · Models · Key & BPM | **⌘1** · **⌘2** · **⌘3** · **⌘4** · **⌘5** | **Ctrl+1** · **Ctrl+2** · **Ctrl+3** · **Ctrl+4** · **Ctrl+5** |
+| Separate · Player · Library · Models · Key & BPM · Download track | **⌘1** · **⌘2** · **⌘3** · **⌘4** · **⌘5** · **⌘6** | **Ctrl+1** · **Ctrl+2** · **Ctrl+3** · **Ctrl+4** · **Ctrl+5** · **Ctrl+6** |
 | Settings | **⌘,** | **Ctrl+,** |
 | Master volume up / down | **⌘↑** / **⌘↓** | **Ctrl+↑** / **Ctrl+↓** |
 | Mute / unmute master | **M** | **M** |
@@ -174,11 +197,12 @@ Requirements: [Node](https://nodejs.org) 20+, [Rust](https://rustup.rs) (stable)
 git clone https://github.com/JonneNieminen/Prism.git && cd Prism
 npm install
 npm run fetch-models     # bundled Demucs weights (~174 MB), SHA-256 verified
+npm run fetch-ytdlp      # the downloader for Download track, SHA-256 verified (also run by `tauri build`)
 npx tauri dev            # run the app
 npx tauri build          # → target/release/bundle/{macos,dmg}
 ```
 
-`npm run dev` runs only the UI in a browser with a mock backend — handy for UI work.
+`npm run dev` runs only the UI in a browser with a mock backend — handy for UI work. `npm run screenshots` (with the preview running) regenerates the README screenshots in [`docs/screenshots`](docs/screenshots).
 
 ### Tests
 
@@ -187,7 +211,7 @@ cargo test --workspace                     # unit + end-to-end (decode → separ
 PRISM_TEST_AUDIO=~/Music/song.mp3 cargo test -p prism-core --test end_to_end
 cargo clippy --workspace --all-targets -- -D warnings
 npm run typecheck
-npm test                                   # UI unit tests (Vitest)
+npm test                                   # UI unit tests (Vitest): shortcuts on every OS, translations, queue, …
 ```
 
 CI ([`build.yml`](.github/workflows/build.yml)) runs all checks on every push and pull request and builds the `.dmg` as a downloadable artifact.
@@ -206,10 +230,15 @@ Inference is **ONNX Runtime in Rust** — no Python at runtime. Demucs' STFT/iST
 |---|---|
 | `crates/prism-core` | Audio decoding, STFT, `Separator` trait, model adapters, manifest validation, model store, catalog, library, export |
 | `crates/prism-cli` | Headless `prism separate / compare / validate` for benchmarks and parity checks |
-| `src-tauri` | Tauri commands, background jobs, native menu |
+| `src-tauri` | Tauri commands, background jobs, track downloads, native menu (translated) |
 | `src` | React UI — `lib/ipc.ts` is the only backend boundary |
+| `src/i18n` | Translations: English text lives in the code as `t("…")`; `fi.ts` and `sv.ts` are dictionaries keyed by it, and a test fails if one is missing |
 | `models/` · `catalog/` | Bundled model manifest · default model catalog |
 | `tools/export` | Dev-only, pinned Python env that converts Demucs to ONNX and verifies parity |
+
+## Adding a language
+
+Wrap new UI text in `t("…")` (or `tn` for plurals), add the English text to `src/i18n/<lang>.ts` with its translation — `npm test` lists whatever is missing — then add the language to `LANGUAGES` in `src/i18n/index.ts`, to the `Language` enum in `crates/prism-core/src/settings.rs` (rerun `cargo test -p prism-core` for the bindings) and to the menu table in `src-tauri/src/menu.rs`.
 
 ## Adding your own model
 
@@ -252,7 +281,7 @@ A model is a folder with a `model.json` and ONNX weights. Prism only runs **ONNX
 
 ## Privacy & security
 
-- No network access except the model catalog when you open it. No accounts, no telemetry.
+- No network access except the model catalog when you open it and the tracks you choose to download from a link. No accounts, no telemetry.
 - Stems and settings live in `~/Library/Application Support/com.jonnenieminen.prism`; compiled Core ML models in `~/Library/Caches/com.jonnenieminen.prism`. Both can be cleared in Settings.
 - Model packages are never executed; only `.onnx` weights are loaded, and downloads are SHA-256 verified before they're usable.
 

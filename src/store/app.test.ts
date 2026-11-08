@@ -9,6 +9,7 @@ const runningJob: Job = {
   device: null,
   detail: null,
   note: null,
+  log: [],
   startedAt: 0,
   title: "Current",
   modelId: "htdemucs",
@@ -40,5 +41,14 @@ describe("separation queue", () => {
     useApp.getState().addSongs(["/m/a.mp3"]);
     await useApp.getState().startNext();
     expect(useApp.getState().queue).toHaveLength(1);
+  });
+
+  it("leaves the job screen the moment cancel is pressed, without waiting for the backend", async () => {
+    useApp.setState({ queue: [] });
+    const done = useApp.getState().cancelJob();
+    expect(useApp.getState().job).toBeNull();
+    await done;
+    expect(useApp.getState().jobError).toBeNull();
+    expect(useApp.getState().source).not.toBeNull(); // back to the song, ready to separate again
   });
 });

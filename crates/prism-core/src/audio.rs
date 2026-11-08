@@ -17,7 +17,7 @@ use crate::util::CancelToken;
 use crate::{PrismError, Result};
 
 /// Formats the import screen accepts.
-pub const SUPPORTED_EXTENSIONS: &[&str] = &["mp3", "wav", "flac", "m4a", "ogg", "oga", "aac"];
+pub const SUPPORTED_EXTENSIONS: &[&str] = &["mp3", "wav", "flac", "m4a", "mp4", "ogg", "oga", "aac"];
 
 /// Planar f32 audio. `channels[c][i]`.
 #[derive(Clone, Debug, Default)]
