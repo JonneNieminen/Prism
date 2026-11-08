@@ -195,14 +195,14 @@ export function PlayerView({ theme }: { theme: string }) {
         >
           <SkipBack size={15} />
         </button>
-        <div className="flex flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <span ref={timeRef} className="tabular w-10 text-right text-[12px]">
             0:00
           </span>
           <input
             ref={seekRef}
             type="range"
-            className="prism-range flex-1"
+            className="prism-range min-w-0 flex-1"
             aria-label="Playback position"
             data-tip="Drag to move through the song (← → skip 5 s)"
             min={0}
@@ -231,7 +231,7 @@ export function PlayerView({ theme }: { theme: string }) {
             tip={loop ? (loopOn ? "Stop looping" : "Loop this part again") : "Loop a part: shift-drag across a waveform, or press I and O at its start and end"}
             shortcut="loopToggle"
           >
-            <span className="tabular">{loop ? `${formatTime(loop.start)}–${formatTime(loop.end)}` : "Loop"}</span>
+            {loop ? <span className="tabular">{`${formatTime(loop.start)}–${formatTime(loop.end)}`}</span> : <span className="max-xl:sr-only">Loop</span>}
           </Button>
           {loop && (
             <IconButton label="Clear loop" tip="Clear the loop" onClick={() => setLoop(null)}>
@@ -242,13 +242,13 @@ export function PlayerView({ theme }: { theme: string }) {
         {hasVocals && (
           <div className="flex items-center gap-1 border-l border-border pl-4">
             <Button size="sm" variant={isKaraoke ? "secondary" : "ghost"} icon={<MicOff size={13} />} aria-pressed={isKaraoke} onClick={() => preset("karaoke")} tip="Remove the vocals" shortcut="karaoke">
-              Karaoke
+              <span className="max-xl:sr-only">Karaoke</span>
             </Button>
             <Button size="sm" variant={isAcapella ? "secondary" : "ghost"} icon={<Headphones size={13} />} aria-pressed={isAcapella} onClick={() => preset("acapella")} tip="Hear only the vocals" shortcut="acapella">
-              A cappella
+              <span className="max-xl:sr-only">A cappella</span>
             </Button>
             <Button size="sm" variant="ghost" icon={<RotateCcw size={13} />} onClick={() => preset("reset")} tip="Unmute everything, volumes to 100%" shortcut="resetMix">
-              Reset
+              <span className="max-xl:sr-only">Reset</span>
             </Button>
           </div>
         )}

@@ -80,6 +80,7 @@ const SECTIONS: Section[] = [
         <li>
           WAV is 24-bit and lossless, FLAC is lossless and smaller, MP3 is smallest (128–320 kbps). Files are named like <i>Song Title - vocals.wav</i>.
         </li>
+        <li>With a loop set, choose <b>Length → Loop</b> in the export dialog to save only that part.</li>
         <li>Set a default save folder in Settings to skip navigating every time.</li>
       </ul>
     ),

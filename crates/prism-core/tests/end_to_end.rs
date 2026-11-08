@@ -93,7 +93,7 @@ fn separate_store_export() {
     let out = t.path().join("out");
     std::fs::create_dir_all(&out).unwrap();
     for fmt in [ExportFormat::Wav, ExportFormat::Flac, ExportFormat::Mp3] {
-        let o = ExportOptions { format: fmt, mp3_bitrate: 320 };
+        let o = ExportOptions { format: fmt, mp3_bitrate: 320, range: None };
         let f = out.join(format!("vocals.{}", fmt.ext()));
         export_stem(&lib, &p, "vocals", &o, &f).unwrap();
         let (a, _) = decode_file(&f, &cancel).unwrap();
@@ -108,7 +108,7 @@ fn separate_store_export() {
         &lib,
         &p,
         &karaoke,
-        &ExportOptions { format: ExportFormat::Wav, mp3_bitrate: 320 },
+        &ExportOptions { format: ExportFormat::Wav, mp3_bitrate: 320, range: None },
         &out.join("karaoke.wav"),
     )
     .unwrap();
@@ -116,7 +116,7 @@ fn separate_store_export() {
     export_zip(
         &lib,
         &p,
-        &ExportOptions { format: ExportFormat::Flac, mp3_bitrate: 320 },
+        &ExportOptions { format: ExportFormat::Flac, mp3_bitrate: 320, range: None },
         &zip_path,
         &t.path().join("tmp"),
         &mut |_| {},

@@ -116,6 +116,7 @@ When separation finishes the player opens. Every stem plays in sync.
 - **Export mix** (**⌘E**) saves exactly what you hear as one file.
 - **Download all stems** (**⇧⌘E**) saves a `.zip` with one file per stem.
 - The download button on a stem saves just that stem.
+- With a loop set, choose **Length → Loop** to export only that part (a practice section or a sample), with tiny fades so it never clicks.
 
 Files are named like `Song Title - vocals.wav`. Choose a default save folder in **Settings**.
 

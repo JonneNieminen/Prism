@@ -7,6 +7,7 @@ export type * from "./DownloadProgress";
 export type * from "./ErrorKind";
 export type * from "./ExportFormat";
 export type * from "./ExportOptions";
+export type * from "./ExportRange";
 export type * from "./Hints";
 export type * from "./MixGain";
 export type * from "./ModelInfo";

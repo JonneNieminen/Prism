@@ -40,6 +40,56 @@ pub struct ExportOptions {
     pub format: ExportFormat,
     /// kbps, MP3 only: 128, 192, 256 or 320.
     pub mp3_bitrate: u32,
+    /// Export only this part of the song (the player's loop). Whole song when absent.
+    #[serde(default)]
+    #[ts(optional)]
+    pub range: Option<ExportRange>,
+}
+
+/// A part of the song, in seconds from the start.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, TS, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ExportRange {
+    pub start_secs: f64,
+    pub end_secs: f64,
+}
+
+/// Shortest part that can be exported.
+const MIN_RANGE_SECS: f64 = 0.05;
+/// Fade at each cut so a part never starts or ends with a click.
+const EDGE_FADE_SECS: f64 = 0.004;
+
+/// The frames of `a` inside `r`, with short fades where the cut lands mid-song.
+pub fn trim(a: &Audio, r: ExportRange) -> Result<Audio> {
+    let sr = a.sample_rate as f64;
+    let frames = a.frames();
+    let at = |secs: f64| ((secs.max(0.0) * sr).round() as usize).min(frames);
+    let (start, end) = (at(r.start_secs), at(r.end_secs));
+    if !(r.start_secs.is_finite() && r.end_secs.is_finite()) || (end.saturating_sub(start) as f64) < MIN_RANGE_SECS * sr
+    {
+        return Err(PrismError::Other("The part to export is too short. Choose a longer loop.".into()));
+    }
+    let fade = ((EDGE_FADE_SECS * sr) as usize).max(1).min((end - start) / 2);
+    let channels = a
+        .channels
+        .iter()
+        .map(|c| {
+            let mut out = c[start..end].to_vec();
+            let n = out.len();
+            for i in 0..fade {
+                let g = i as f32 / fade as f32;
+                if start > 0 {
+                    out[i] *= g;
+                }
+                if end < frames {
+                    out[n - 1 - i] *= g;
+                }
+            }
+            out
+        })
+        .collect();
+    Ok(Audio { sample_rate: a.sample_rate, channels })
 }
 
 /// Gain for one stem in a custom mix (0 = removed).
@@ -77,6 +127,14 @@ fn write_atomic(target: &Path, f: impl FnOnce(&Path) -> Result<()>) -> Result<()
 }
 
 pub fn encode(audio: &Audio, opts: &ExportOptions, target: &Path) -> Result<()> {
+    let trimmed;
+    let audio = match opts.range {
+        Some(r) => {
+            trimmed = trim(audio, r)?;
+            &trimmed
+        }
+        None => audio,
+    };
     write_atomic(target, |tmp| match opts.format {
         ExportFormat::Wav => write_wav24(audio, tmp),
         ExportFormat::Flac => write_flac(audio, tmp),
@@ -251,12 +309,46 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         for fmt in [ExportFormat::Wav, ExportFormat::Flac, ExportFormat::Mp3] {
             let p = t.path().join(format!("x.{}", fmt.ext()));
-            encode(&tone(), &ExportOptions { format: fmt, mp3_bitrate: 192 }, &p).unwrap();
+            encode(&tone(), &ExportOptions { format: fmt, mp3_bitrate: 192, range: None }, &p).unwrap();
             let (a, _) = crate::audio::decode_file(&p, &CancelToken::new()).unwrap();
             assert_eq!(a.channels.len(), 2);
             assert!((a.frames() as i64 - 44100).abs() < 3000, "{fmt:?} frames {}", a.frames());
             assert!(!part_path(&p).exists());
         }
+    }
+
+    #[test]
+    fn trims_to_a_range_with_soft_edges() {
+        let a = Audio { sample_rate: 1000, channels: vec![vec![1.0; 3000], vec![0.5; 3000]] };
+        let t = trim(&a, ExportRange { start_secs: 1.0, end_secs: 2.5 }).unwrap();
+        assert_eq!(t.frames(), 1500);
+        assert_eq!(t.channels.len(), 2);
+        assert_eq!(t.channels[0][0], 0.0, "fades in at a mid-song cut");
+        assert_eq!(t.channels[0][750], 1.0);
+        assert!(t.channels[0][1499] < 0.5, "fades out at a mid-song cut");
+
+        // From the very start: nothing to fade in. Past the end: clamped to the song.
+        let head = trim(&a, ExportRange { start_secs: 0.0, end_secs: 9.0 }).unwrap();
+        assert_eq!(head.frames(), 3000);
+        assert_eq!(head.channels[1][0], 0.5);
+        assert_eq!(head.channels[1][2999], 0.5);
+
+        assert!(trim(&a, ExportRange { start_secs: 2.0, end_secs: 2.01 }).is_err());
+        assert!(trim(&a, ExportRange { start_secs: f64::NAN, end_secs: 2.0 }).is_err());
+    }
+
+    #[test]
+    fn encodes_only_the_range() {
+        let t = tempfile::tempdir().unwrap();
+        let p = t.path().join("part.wav");
+        let opts = ExportOptions {
+            format: ExportFormat::Wav,
+            mp3_bitrate: 192,
+            range: Some(ExportRange { start_secs: 0.25, end_secs: 0.75 }),
+        };
+        encode(&tone(), &opts, &p).unwrap();
+        let (a, _) = crate::audio::decode_file(&p, &CancelToken::new()).unwrap();
+        assert_eq!(a.frames(), 22050);
     }
 
     #[test]

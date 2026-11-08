@@ -1,18 +1,23 @@
 import { Archive, AudioLines, FileAudio } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
-import type { ExportFormat, Project } from "../../bindings";
+import type { ExportFormat, ExportRange, Project } from "../../bindings";
 import { Modal } from "../../components/Modal";
 import { Button, ProgressBar, Segmented, StemChip, cx } from "../../components/ui";
 import { effectiveGains, type StemMix } from "../../lib/audio/engine";
 import { backend, toAppError } from "../../lib/ipc";
+import { formatTime } from "../../lib/format";
 import { useApp, type ExportTarget } from "../../store/app";
+import { usePlayer } from "../player/playerStore";
 
 const FORMATS: { value: ExportFormat; label: string; hint: string }[] = [
   { value: "wav", label: "WAV", hint: "Lossless, 24-bit — best for editing" },
   { value: "flac", label: "FLAC", hint: "Lossless and about half the size of WAV" },
   { value: "mp3", label: "MP3", hint: "Small and plays everywhere" },
 ];
+
+/** "1m05s": a file-name-safe time. */
+const timeTag = (t: number) => `${Math.floor(t / 60)}m${String(Math.floor(t % 60)).padStart(2, "0")}s`;
 
 export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[] }) {
   const target = useApp((s) => s.exportTarget);
@@ -25,6 +30,9 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
   const [format, setFormat] = useState<ExportFormat>(settings.exportFormat);
   const [bitrate, setBitrate] = useState(settings.mp3Bitrate);
   const [busy, setBusy] = useState<number | null>(null);
+  const loop = usePlayer((s) => s.loop);
+  const loopOn = usePlayer((s) => s.loopOn);
+  const [onlyLoop, setOnlyLoop] = useState(false);
   const onClose = () => busy === null && setTarget(null);
 
   useEffect(() => {
@@ -33,6 +41,7 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
     if (target.kind === "stem") setStemId(target.stemId);
     setFormat(settings.exportFormat);
     setBitrate(settings.mp3Bitrate);
+    setOnlyLoop(loopOn && !!loop);
     setBusy(null);
   }, [target]);
 
@@ -41,7 +50,9 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
   const removed = project.stems.filter((s) => !kept.includes(s));
   const mixSuffix = removed.length === 0 ? "full mix" : kept.length === 1 ? `${kept[0].id} only` : `no ${removed.map((s) => s.id).join(" + ")}`;
   const ext = kind === "zip" ? "zip" : format;
-  const suffix = kind === "mix" ? mixSuffix : kind === "zip" ? "stems" : (stemId ?? "stem");
+  const range: ExportRange | null = onlyLoop && loop ? { startSecs: loop.start, endSecs: loop.end } : null;
+  const baseSuffix = kind === "mix" ? mixSuffix : kind === "zip" ? "stems" : (stemId ?? "stem");
+  const suffix = range ? `${baseSuffix} ${timeTag(range.startSecs)}-${timeTag(range.endSecs)}` : baseSuffix;
 
   const run = async () => {
     const b = await backend();
@@ -49,7 +60,7 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
     const defaultPath = settings.defaultSaveDir ? b.joinPath(settings.defaultSaveDir, name) : name;
     const path = await b.pickSavePath(defaultPath, ext);
     if (!path) return;
-    const options = { format, mp3Bitrate: bitrate };
+    const options = { format, mp3Bitrate: bitrate, ...(range ? { range } : {}) };
     void updateSettings({ exportFormat: format, mp3Bitrate: bitrate });
     setBusy(0);
     const jobId = `zip-${crypto.randomUUID()}`;
@@ -113,7 +124,21 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
         </div>
       )}
 
-      <div className="mt-5 flex items-center justify-between">
+      {loop && (
+        <div className="mt-5 flex items-center justify-between">
+          <span className="text-[13px]">Length</span>
+          <Segmented
+            label="Length"
+            value={onlyLoop ? "loop" : "song"}
+            onChange={(v) => setOnlyLoop(v === "loop")}
+            options={[
+              { value: "song", label: "Whole song", tip: "Export from the start to the end" },
+              { value: "loop", label: `Loop ${formatTime(loop.start)}–${formatTime(loop.end)}`, tip: "Export only the part you are looping" },
+            ]}
+          />
+        </div>
+      )}
+      <div className={cx("flex items-center justify-between", loop ? "mt-3" : "mt-5")}>
         <span className="text-[13px]">Format</span>
         <Segmented label="Format" value={format} onChange={setFormat} options={FORMATS.map((f) => ({ value: f.value, label: f.label, tip: f.hint }))} />
       </div>
