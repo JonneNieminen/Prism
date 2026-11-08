@@ -38,6 +38,7 @@ export type CommandId =
   | "loopOut"
   | "karaoke"
   | "acapella"
+  | "noGuitar"
   | "resetMix"
   | "minimize"
   | "fullscreen"
@@ -96,6 +97,7 @@ const ALL_SHORTCUTS: Shortcut[] = [
   { id: "soloStem", label: mark("Solo stem 1–9"), keys: ["shift", "1", "–", "9"], group: "Stems" },
   { id: "karaoke", label: mark("Karaoke (remove vocals)"), keys: ["K"], group: "Stems" },
   { id: "acapella", label: mark("A cappella (vocals only)"), keys: ["A"], group: "Stems" },
+  { id: "noGuitar", label: mark("No guitar (remove the guitar stem)"), keys: ["G"], group: "Stems" },
   { id: "resetMix", label: mark("Reset mix"), keys: ["R"], group: "Stems" },
 
   { id: "minimize", label: mark("Minimize window"), keys: ["mod", "M"], group: "Window", systemOnly: true, platforms: ["mac"] },
@@ -180,6 +182,7 @@ export function matchEvent(e: KeyboardEvent): { id: CommandId } | { id: "muteSte
   if (e.shiftKey) return null;
   if (k === "k") return { id: "karaoke" };
   if (k === "a") return { id: "acapella" };
+  if (k === "g") return { id: "noGuitar" };
   if (k === "r") return { id: "resetMix" };
   if (k === "i") return { id: "loopIn" };
   if (k === "o") return { id: "loopOut" };

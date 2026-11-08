@@ -21,7 +21,7 @@ const SHOTS = [
   ["download-dark", "view=download&theme=dark&demo=download", 860, 3600],
   ["library-dark", "view=library&theme=dark", 600, 2000],
   ["models-light", "view=models&theme=light", 760, 2500],
-  ["settings-dark", "view=settings&theme=dark", 1100, 2000],
+  ["settings-dark", "view=settings&theme=dark", 1480, 2000],
   ["shortcuts-dark", "view=shortcuts&theme=dark", 900, 2000],
   ["separate-fi-dark", "view=separate&theme=dark&lang=fi", 760, 2000],
 ];

@@ -52,7 +52,7 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 - **Separate** MP3, WAV, FLAC, M4A (AAC/ALAC) and OGG into stems with Demucs v4 — bundled, works offline from the first launch.
 - **See what's happening**: a spinner, a step list and a live log under it say exactly what Prism is doing — decoding, compiling the model, each chunk — and **Cancel** takes effect at once.
 - **Queue songs**: drop several at once, or drop more while one is separating; they run one after another and land in the Library.
-- **Remove or isolate instruments** live: mute, solo and set the volume of each stem; one-click *Karaoke* and *A cappella*.
+- **Remove or isolate instruments** live: mute, solo and set the volume of each stem; one-click *Karaoke* and *A cappella*, and — with the 6-stem model — *No guitar* and *Guitar only*.
 - **Synced multi-stem player** with a shared playhead, waveforms and full keyboard control.
 - **Loop a part** to practice it: shift-drag across a waveform (or press **I** and **O**) and every stem loops in sync. Each song remembers its mix and loop.
 - **Export** a single stem, all stems as a `.zip`, or exactly the mix you hear — WAV (24-bit), FLAC or MP3 (128–320 kbps).
@@ -60,8 +60,9 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 - **Master volume**: one slider and a sound on/off switch in the sidebar, available in every view and remembered between launches.
 - **Download a track** from a YouTube, SoundCloud, Instagram or TikTok link (or any other link the bundled downloader can read) straight into Separate, with an animated step-by-step view. Spotify's copy-protected streams are refused. Only download what you have the right to.
 - **Key & BPM**: a separate tool that finds a song's tempo and key (with Camelot code) in seconds, no separation needed.
+- **Updates itself**: Prism checks GitHub for a new version when it starts and every 4 hours (switchable), installs it with one click and restarts. *Settings → Updates* shows the version and the latest release notes.
 - **Library** of past separations that reopen instantly, remembering which model made them.
-- **Pluggable models**: import your own ONNX models, or download more from a checksum-verified catalog (6-stem Demucs, fine-tuned Demucs, MDX-Net vocal and instrumental models).
+- **Pluggable models**: import your own ONNX models, or download more from a checksum-verified catalog (6-stem Demucs, fine-tuned Demucs, BS-RoFormer with the cleanest guitar, MDX-Net vocal and instrumental models).
 - **Fast on Apple Silicon** via Core ML — about 11× realtime on an M1 Pro — with automatic CPU fallback.
 - **macOS, Windows and Linux** (x64 and ARM). Windows and Linux separate on the CPU.
 - **English, Finnish and Swedish**: pick the language in Settings (English is the default); the menu bar follows it. Text anywhere in the app can be selected and copied.
@@ -130,7 +131,7 @@ Downloads use the bundled [yt-dlp](https://github.com/yt-dlp/yt-dlp). Only downl
 When separation finishes the player opens. Every stem plays in sync.
 
 - Click a stem's name or its colored dot to mute it; **⇧-click** mutes or unmutes a whole range. **S** solos a stem — solo wins over mute, like a mixing desk.
-- Drag a stem's slider to change its volume (up to 150%); double-click it to reset.
+- Drag a stem's slider to change its volume (up to 150%), or scroll over it — the master volume works the same way; double-click to reset.
 - **Karaoke** removes the vocals, **A cappella** keeps only the vocals, **Reset** turns everything back on.
 - Click a waveform to jump there, or drag to scrub.
 - **Loop a part**: hold **Shift** and drag across a waveform, or press **I** at the start and **O** at the end. **L** turns the loop on and off, and the **×** next to it clears it. All stems loop together, sample-accurately.
@@ -180,7 +181,7 @@ Prism shows the shortcuts for your system: hover any button to see its shortcut,
 | Back / forward 15 s | **Shift+←** / **Shift+→** | Karaoke (remove vocals) | **K** |
 | Go to start | **0** | A cappella (vocals only) | **A** |
 | Loop from here / up to here | **I** / **O** | Reset mix | **R** |
-| Loop on / off | **L** | | |
+| Loop on / off | **L** | Remove the guitar (6-stem model) | **G** |
 
 | Window | macOS | Windows | Linux |
 |---|---|---|---|
@@ -236,6 +237,20 @@ Inference is **ONNX Runtime in Rust** — no Python at runtime. Demucs' STFT/iST
 | `models/` · `catalog/` | Bundled model manifest · default model catalog |
 | `tools/export` | Dev-only, pinned Python env that converts Demucs to ONNX and verifies parity |
 
+## Releases and updates
+
+Installed copies update themselves from GitHub releases. Each release publishes signed update files and a `latest.json`, which the app reads from `releases/latest/download/latest.json`; it verifies the signature against the public key in `src-tauri/tauri.conf.json` (`plugins.updater.pubkey`) before installing, then restarts. Prerelease versions (`1.2.0-beta.1`) are not offered.
+
+To publish releases that can update, the repository needs the signing key as two Actions secrets. Generate a key pair once (keep the private key and its password somewhere safe, never in the repository), put the public key in `tauri.conf.json`, and add the secrets:
+
+```bash
+npx tauri signer generate -w ~/.prism-signing/prism.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.prism-signing/prism.key
+gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+```
+
+Without the secrets a release still publishes, just without in-app updates. The first release that contains the updater has to be installed by hand; every later one arrives in-app. Development builds don't check for updates by themselves.
+
 ## Adding a language
 
 Wrap new UI text in `t("…")` (or `tn` for plurals), add the English text to `src/i18n/<lang>.ts` with its translation — `npm test` lists whatever is missing — then add the language to `LANGUAGES` in `src/i18n/index.ts`, to the `Language` enum in `crates/prism-core/src/settings.rs` (rerun `cargo test -p prism-core` for the bindings) and to the menu table in `src-tauri/src/menu.rs`.
@@ -249,7 +264,7 @@ A model is a folder with a `model.json` and ONNX weights. Prism only runs **ONNX
   "schemaVersion": 1,
   "id": "my-vocals",                 // a–z 0–9 . _ -, unique
   "name": "My vocal model",
-  "architecture": "mdx-net",         // which adapter runs it: "demucs" or "mdx-net"
+  "architecture": "mdx-net",         // which adapter runs it: "demucs", "mdx-net" or "bs-roformer"
   "weights": "model.onnx",           // or a list: [{ "file", "sha256", "stemWeights" }]
   "sha256": "…64 hex…",              // optional for imports, required in catalogs
   "sampleRate": 44100,
@@ -261,6 +276,7 @@ A model is a folder with a `model.json` and ONNX weights. Prism only runs **ONNX
   "chunkSeconds": 5.92,
   "overlap": 0.5,
   "license": "MIT",                  // non-commercial licenses (e.g. CC-BY-NC) are flagged
+  "cpuOnly": false,                  // optional: true keeps a model off the GPU / Neural Engine
   "author": "You",
   "description": "Clean vocals",
   "hints": { "speed": 4, "quality": 4 },            // 1–5, shown in the model picker
@@ -276,8 +292,9 @@ A model is a folder with a `model.json` and ONNX weights. Prism only runs **ONNX
 |---|---|---|
 | `demucs` | htdemucs, htdemucs_6s, htdemucs_ft (exported with `tools/export`) | `segmentSamples`, `nfft`, `hop` |
 | `mdx-net` | UVR MDX-Net ONNX models (`[1, 4, dimF, dimT]`) | `nFft`, `hop`, `dimF`, `dimT`, `compensate`, `denoise` |
+| `bs-roformer` | BS-RoFormer / Mel-Band RoFormer ONNX exports with the STFT outside the graph (`spec_real`/`spec_imag` in, a masked spectrogram per stem out) | `nFft`, `hop`, `chunkSamples` |
 
-**New architectures** (e.g. BS-RoFormer, Mel-Band RoFormer): add `crates/prism-core/src/adapters/<name>.rs` implementing `Separator` (reuse `dsp::Stft` and `runtime::session`), register it in `adapters/mod.rs`, and add a parity test against the reference implementation. Nothing else in the app changes.
+**New architectures** (e.g. SCNet, or a RoFormer variant whose graph differs from `bs-roformer`): add `crates/prism-core/src/adapters/<name>.rs` implementing `Separator` (reuse `dsp::Stft` and `runtime::session`), register it in `adapters/mod.rs`, and add a parity test against the reference implementation. Nothing else in the app changes.
 
 ## Privacy & security
 

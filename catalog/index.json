@@ -213,6 +213,90 @@
     {
       "manifest": {
         "schemaVersion": 1,
+        "id": "bs-roformer-sw",
+        "name": "BS-RoFormer \u00b7 6 stems (SW)",
+        "version": "1.0",
+        "architecture": "bs-roformer",
+        "weights": "bs_roformer_sw_6stem_fp16.onnx",
+        "sha256": "d3d2bac77a7023282cb5f35a5807179e34076b60589867b572275f1a8ec36444",
+        "sampleRate": 44100,
+        "channels": 2,
+        "stems": [
+          {
+            "id": "bass",
+            "label": "Bass",
+            "color": "#7C5CFF"
+          },
+          {
+            "id": "drums",
+            "label": "Drums",
+            "color": "#FFB020"
+          },
+          {
+            "id": "other",
+            "label": "Other",
+            "color": "#A3E635"
+          },
+          {
+            "id": "vocals",
+            "label": "Vocals",
+            "color": "#FF5D8F"
+          },
+          {
+            "id": "guitar",
+            "label": "Guitar",
+            "color": "#2DD4BF"
+          },
+          {
+            "id": "piano",
+            "label": "Piano",
+            "color": "#5AB0FF"
+          }
+        ],
+        "chunkSeconds": 4.0,
+        "overlap": 0.25,
+        "license": "No licence published (community checkpoint)",
+        "licenseUrl": "https://github.com/ZFTurbo/Music-Source-Separation-Training/issues/248",
+        "nonCommercial": true,
+        "author": "Unknown (community checkpoint)",
+        "description": "The cleanest guitar available, plus piano, vocals, drums and bass. Large: runs on the CPU only, at about half real-time speed. The weights have no published licence, so treat the output as non-commercial.",
+        "homepage": "https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx",
+        "hints": {
+          "speed": 1,
+          "quality": 5
+        },
+        "quality": {
+          "fast": {
+            "shifts": 0,
+            "overlap": 0.15
+          },
+          "balanced": {
+            "shifts": 0,
+            "overlap": 0.25
+          },
+          "best": {
+            "shifts": 0,
+            "overlap": 0.5
+          }
+        },
+        "params": {
+          "nFft": 2048,
+          "hop": 512,
+          "chunkSamples": 176400
+        },
+        "cpuOnly": true
+      },
+      "files": [
+        {
+          "file": "bs_roformer_sw_6stem_fp16.onnx",
+          "url": "https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx/resolve/main/bs_roformer_sw_6stem_fp16.onnx",
+          "bytes": 352778874
+        }
+      ]
+    },
+    {
+      "manifest": {
+        "schemaVersion": 1,
         "id": "uvr-mdx-voc-ft",
         "name": "MDX-Net \u00b7 Vocals FT",
         "architecture": "mdx-net",

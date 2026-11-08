@@ -39,6 +39,13 @@
     "copyright": "MIT",
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "resources": { "../models/htdemucs/": "models/htdemucs/", "bin/": "bin/" },
-    "macOS": { "minimumSystemVersion": "13.0" }
+    "macOS": { "minimumSystemVersion": "13.0" },
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdEREI2NDBEOTFFQTZFODUKUldTRmJ1cVJEV1RiZmNMNk9vTVF2Ly9QVW50SGthZS9zYjhnL0JNaDJud2pPNk5aR245M2tTNGYK",
+      "endpoints": ["https://github.com/JonneNieminen/Prism/releases/latest/download/latest.json"]
+    }
   }
 }

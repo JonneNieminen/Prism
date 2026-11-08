@@ -181,7 +181,8 @@ fn run_separation(
     cancel.check()?;
 
     let settings = st.settings();
-    let mut accel = settings.acceleration;
+    // A model that can't use the accelerator runs on the CPU whatever the setting says.
+    let mut accel = if m.runs_on_cpu_only() { Acceleration::Cpu } else { settings.acceleration };
     let started = Instant::now();
     loop {
         let rt = RuntimeOptions { acceleration: accel, cache_dir: Some(st.paths.accel_cache.clone()) };
@@ -199,7 +200,14 @@ fn run_separation(
             let mut rt = rt.clone();
             rt.cache_dir = rt.cache_dir.map(|d| d.join(&m.id));
             if accel == Acceleration::Cpu {
-                info("Hardware acceleration is off: running on the CPU, no compile needed".into());
+                info(
+                    if m.runs_on_cpu_only() {
+                        "This model runs on the CPU only (it is too large for the accelerator): no compile needed"
+                    } else {
+                        "Hardware acceleration is off: running on the CPU, no compile needed"
+                    }
+                    .into(),
+                );
             } else if first {
                 info("No compiled copy found: Core ML will compile each network once and keep the result".into());
             } else {

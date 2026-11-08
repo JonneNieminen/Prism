@@ -242,6 +242,9 @@ function ModelSummary({ manifest: m, nonCommercial }: { manifest: CatalogEntry["
             {t("Non-commercial")}
           </Chip>
         )}
+        {m.cpuOnly && (
+          <Chip tip={t("Always runs on the CPU: slower than the GPU / Neural Engine, but it can't run out of accelerator memory")}>{t("CPU only")}</Chip>
+        )}
       </div>
       {m.description && <p className="mt-1 text-[13px] text-muted">{m.description}</p>}
       <div className="mt-3 flex flex-wrap gap-1.5">

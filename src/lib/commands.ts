@@ -99,6 +99,8 @@ export async function runCommand(id: CommandId | "muteStem" | "soloStem", index 
       return inPlayer ? player.preset("karaoke") : undefined;
     case "acapella":
       return inPlayer ? player.preset("acapella") : undefined;
+    case "noGuitar":
+      return inPlayer ? player.preset("noGuitar") : undefined;
     case "resetMix":
       return inPlayer ? player.preset("reset") : undefined;
     case "muteStem":

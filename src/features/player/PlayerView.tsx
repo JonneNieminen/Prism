@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Archive, Download, Headphones, MicOff, Pause, Play, Repeat, RotateCcw, Share, SkipBack, Volume1, Volume2, VolumeX, X } from "lucide-react";
+import { Archive, Download, Guitar, Headphones, MicOff, Pause, Play, Repeat, RotateCcw, Share, SkipBack, Volume1, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProjectStem } from "../../bindings";
 import { Waveform } from "../../components/Waveform";
@@ -16,6 +16,9 @@ import { useT } from "../../i18n/useT";
 
 /** Width of the left controls column in each stem row (keeps the playhead aligned). */
 const CONTROLS_W = 236;
+const LANE_GAP = 16;
+/** Space right of the waveform: gap, the export button (28) and the row's right padding (12). */
+const LANE_TAIL = LANE_GAP + 28 + 12;
 
 export function PlayerView({ theme }: { theme: string }) {
   const { t } = useT();
@@ -77,6 +80,9 @@ export function PlayerView({ theme }: { theme: string }) {
   const anySolo = mix.some((m) => m.solo);
   const hasVocals = project.stems.some((s) => s.id === "vocals");
   const isKaraoke = hasVocals && mix.some((m) => m.id === "vocals" && m.muted) && !anySolo && mix.filter((m) => m.id !== "vocals").every((m) => !m.muted);
+  const hasGuitar = project.stems.some((s) => s.id === "guitar");
+  const isNoGuitar = hasGuitar && mix.some((m) => m.id === "guitar" && m.muted) && !anySolo && mix.filter((m) => m.id !== "guitar").every((m) => !m.muted);
+  const isGuitarOnly = hasGuitar && mix.some((m) => m.id === "guitar" && m.solo) && mix.filter((m) => m.solo).length === 1;
   const isAcapella = hasVocals && mix.some((m) => m.id === "vocals" && m.solo) && mix.filter((m) => m.solo).length === 1;
   const audibleCount = mix.filter((m) => (anySolo ? m.solo : !m.muted)).length;
 
@@ -241,14 +247,28 @@ export function PlayerView({ theme }: { theme: string }) {
             </IconButton>
           )}
         </div>
-        {hasVocals && (
+        {(hasVocals || hasGuitar) && (
           <div className="flex items-center gap-1 border-l border-border pl-4">
-            <Button size="sm" variant={isKaraoke ? "secondary" : "ghost"} icon={<MicOff size={13} />} aria-pressed={isKaraoke} onClick={() => preset("karaoke")} tip={t("Remove the vocals")} shortcut="karaoke">
-              <span className="max-xl:sr-only">{t("Karaoke")}</span>
-            </Button>
-            <Button size="sm" variant={isAcapella ? "secondary" : "ghost"} icon={<Headphones size={13} />} aria-pressed={isAcapella} onClick={() => preset("acapella")} tip={t("Hear only the vocals")} shortcut="acapella">
-              <span className="max-xl:sr-only">{t("A cappella")}</span>
-            </Button>
+            {hasVocals && (
+              <>
+                <Button size="sm" variant={isKaraoke ? "secondary" : "ghost"} icon={<MicOff size={13} />} aria-pressed={isKaraoke} onClick={() => preset("karaoke")} tip={t("Remove the vocals")} shortcut="karaoke">
+                  <span className="max-xl:sr-only">{t("Karaoke")}</span>
+                </Button>
+                <Button size="sm" variant={isAcapella ? "secondary" : "ghost"} icon={<Headphones size={13} />} aria-pressed={isAcapella} onClick={() => preset("acapella")} tip={t("Hear only the vocals")} shortcut="acapella">
+                  <span className="max-xl:sr-only">{t("A cappella")}</span>
+                </Button>
+              </>
+            )}
+            {hasGuitar && (
+              <>
+                <Button size="sm" variant={isNoGuitar ? "secondary" : "ghost"} icon={<Guitar size={13} />} aria-pressed={isNoGuitar} onClick={() => preset("noGuitar")} tip={t("Remove the guitar")} shortcut="noGuitar">
+                  <span className="max-xl:sr-only">{t("No guitar")}</span>
+                </Button>
+                <Button size="sm" variant={isGuitarOnly ? "secondary" : "ghost"} icon={<Guitar size={13} />} aria-pressed={isGuitarOnly} onClick={() => preset("guitarOnly")} tip={t("Hear only the guitar")}>
+                  <span className="max-xl:sr-only">{t("Guitar only")}</span>
+                </Button>
+              </>
+            )}
             <Button size="sm" variant="ghost" icon={<RotateCcw size={13} />} onClick={() => preset("reset")} tip={t("Unmute everything, volumes to 100%")} shortcut="resetMix">
               <span className="max-xl:sr-only">{t("Reset")}</span>
             </Button>
@@ -295,7 +315,7 @@ export function PlayerView({ theme }: { theme: string }) {
           );
         })}
         {/* shared loop region and playhead across all lanes */}
-        <div className="pointer-events-none absolute inset-y-0 right-[96px]" style={{ left: CONTROLS_W + 16 }}>
+        <div className="pointer-events-none absolute inset-y-0" style={{ left: CONTROLS_W + LANE_GAP, right: LANE_TAIL }}>
           <LoopOverlay duration={engine?.duration || project.durationSecs} />
           <div ref={headRef} className="absolute inset-y-0 w-px bg-text/70" style={{ left: "0%" }} />
         </div>
@@ -368,8 +388,8 @@ function StemRow(props: {
       transition={{ duration: 0.22, ease: "easeOut", delay: 0.04 * index }}
       onMouseEnter={props.onHover}
       onFocus={props.onHover}
-      className={cx("group relative flex h-[76px] items-center gap-4 pr-3 transition-colors duration-150", !props.last && "border-b border-border")}
-      style={{ background: props.highlighted ? withAlpha(color, 0.06) : undefined }}
+      className={cx("group relative grid h-[76px] items-center pr-3 transition-colors duration-150", !props.last && "border-b border-border")}
+      style={{ gridTemplateColumns: `${CONTROLS_W}px minmax(0, 1fr) 28px`, columnGap: LANE_GAP, background: props.highlighted ? withAlpha(color, 0.06) : undefined }}
     >
       <div className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color, opacity: props.audible ? 1 : 0.25 }} />
       {/* The whole label area is the mute toggle; the volume slider and solo button sit above it. */}
@@ -382,7 +402,7 @@ function StemRow(props: {
         className="absolute inset-y-0 left-[3px] cursor-pointer select-none hover:bg-elevated/50"
         style={{ width: CONTROLS_W + 13 }}
       />
-      <div className="pointer-events-none relative flex shrink-0 items-center gap-3 pl-3" style={{ width: CONTROLS_W }}>
+      <div className="pointer-events-none relative flex items-center gap-3 pl-3">
         {/* Mute dot: filled = playing, hollow = muted. No transition, so it flips with the sound. */}
         <button
           aria-pressed={props.muted}
@@ -405,9 +425,10 @@ function StemRow(props: {
             <VolIcon size={13} className="shrink-0 text-muted" />
             <input
               type="range"
+              data-wheel
               className="prism-range pointer-events-auto w-[92px]"
               aria-label={t("{name} volume", { name })}
-              data-tip={t("{name} volume · double-click to reset", { name })}
+              data-tip={t("{name} volume · scroll to adjust · double-click to reset", { name })}
               min={0}
               max={1.5}
               step={0.01}
@@ -424,7 +445,7 @@ function StemRow(props: {
         </div>
       </div>
       <div
-        className="relative min-w-0 flex-1 cursor-pointer touch-none select-none"
+        className="relative min-w-0 cursor-pointer touch-none select-none"
         onPointerDown={props.onScrubStart}
         onPointerMove={props.onScrubMove}
         onPointerUp={props.onScrubEnd}

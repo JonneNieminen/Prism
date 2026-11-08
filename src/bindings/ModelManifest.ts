@@ -24,7 +24,12 @@ stems: Array<StemDef>, chunkSeconds: number, overlap: number, license: string, l
 /**
  * Force the non-commercial flag (otherwise inferred from `license`).
  */
-nonCommercial?: boolean | null, author: string, description: string, homepage?: string | null, hints?: Hints | null, quality?: QualityPresets | null, 
+nonCommercial?: boolean | null, 
+/**
+ * Always run on the CPU, never on the GPU / Neural Engine. For models the accelerator path
+ * can't handle (BS-RoFormer needs minutes to compile and then exhausts memory).
+ */
+cpuOnly?: boolean | null, author: string, description: string, homepage?: string | null, hints?: Hints | null, quality?: QualityPresets | null, 
 /**
  * Architecture-specific parameters, validated by the adapter.
  */

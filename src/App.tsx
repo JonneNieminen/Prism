@@ -7,6 +7,7 @@ import { TooltipLayer } from "./components/Tooltip";
 import { Spinner } from "./components/ui";
 import { AnalyzeView } from "./features/analyze/AnalyzeView";
 import { useDownload } from "./features/download/downloadStore";
+import { listenForUpdates } from "./features/settings/updateStore";
 import { DownloadView } from "./features/download/DownloadView";
 import { HelpView } from "./features/help/HelpView";
 import { ShortcutsView } from "./features/help/ShortcutsView";
@@ -36,6 +37,34 @@ function useTheme() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
   return theme;
+}
+
+/**
+ * Scroll over a volume slider (one marked `data-wheel`) to move it, like turning a knob. A wheel
+ * notch moves it about 3% of its range; hold Shift for fine steps. Trackpads scroll smoothly.
+ */
+function useWheelSliders() {
+  useEffect(() => {
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    const onWheel = (e: WheelEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.<HTMLInputElement>('input[type="range"][data-wheel]');
+      if (!el || el.disabled) return;
+      e.preventDefault(); // scroll the slider, not the page
+      const raw = e.deltaY || e.deltaX; // macOS turns Shift+wheel into a sideways scroll
+      const px = e.deltaMode === 1 ? raw * 16 : e.deltaMode === 2 ? raw * 100 : raw;
+      const min = Number(el.min || 0);
+      const max = Number(el.max || 100);
+      const step = Number(el.step) || (max - min) / 100;
+      const current = Number(el.value);
+      const moved = current - (px / 100) * (max - min) * (e.shiftKey ? 0.01 : 0.03);
+      const next = Math.min(max, Math.max(min, Math.round(moved / step) * step));
+      if (next === current) return;
+      setValue.call(el, String(next));
+      el.dispatchEvent(new Event("input", { bubbles: true })); // React's onChange listens for this
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, []);
 }
 
 /** Page-level keyboard shortcuts (the native menu triggers the same commands). */
@@ -109,6 +138,10 @@ export function App() {
   const [fatal, setFatal] = useState<string | null>(null);
   const theme = useTheme();
   useKeyboard();
+  useWheelSliders();
+  useEffect(() => {
+    void listenForUpdates();
+  }, []);
 
   useEffect(() => {
     init()

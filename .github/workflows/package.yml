@@ -12,6 +12,12 @@ on:
       retention-days:
         type: number
         default: 14
+    secrets:
+      # Optional. With the signing key the build also makes signed update files for in-app updates.
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: false
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: false
 
 permissions:
   contents: read
@@ -47,12 +53,20 @@ jobs:
 
       - name: Build (${{ matrix.bundles }})
         shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          config="{\"version\":\"$VERSION\"}"
-          # Intel Macs ship the ONNX Runtime dylib inside the bundle.
-          if [[ -n "${ORT_DYLIB_PATH:-}" ]]; then
-            config="{\"version\":\"$VERSION\",\"bundle\":{\"resources\":{\"$ORT_DYLIB_PATH\":\"libonnxruntime.dylib\"}}}"
-          fi
+          config=$(node -e '
+            const c = { version: process.env.VERSION };
+            const bundle = {};
+            // Intel Macs ship the ONNX Runtime dylib inside the bundle.
+            if (process.env.ORT_DYLIB_PATH) bundle.resources = { [process.env.ORT_DYLIB_PATH]: "libonnxruntime.dylib" };
+            // With the signing key, also make the signed files in-app updates are installed from.
+            if (process.env.TAURI_SIGNING_PRIVATE_KEY) bundle.createUpdaterArtifacts = true;
+            if (Object.keys(bundle).length) c.bundle = bundle;
+            console.log(JSON.stringify(c));
+          ')
           npx tauri build --ci --bundles ${{ matrix.bundles }} --config "$config"
 
       # macOS: drag-to-install DMG with "READ ME FIRST.txt", plus a render of the icon as macOS
@@ -60,6 +74,16 @@ jobs:
       - name: Make DMG
         if: runner.os == 'macOS'
         run: build/macos/make-dmg.sh target/release/bundle/macos/Prism.app "$VERSION" ${{ matrix.rid }} dist
+      # Updater files (only when the build was signed): Prism.app.tar.gz and its signature.
+      - name: Collect updater files
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist
+          for f in target/release/bundle/macos/*.app.tar.gz; do
+            [[ -f "$f" ]] || continue
+            cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.app.tar.gz"
+            cp "$f.sig" "dist/Prism-$VERSION-${{ matrix.rid }}.app.tar.gz.sig"
+          done
       - name: Render icon preview
         if: runner.os == 'macOS'
         run: swift build/macos/render-icon.swift "$PWD/target/release/bundle/macos/Prism.app" icon-preview-${{ matrix.rid }}.png
@@ -77,8 +101,14 @@ jobs:
         run: |
           mkdir -p dist
           shopt -s globstar nullglob
-          for f in target/release/bundle/nsis/*-setup.exe; do cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}-setup.exe"; done
-          for f in target/release/bundle/appimage/*.AppImage; do cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.AppImage"; done
+          for f in target/release/bundle/nsis/*-setup.exe; do
+            cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}-setup.exe"
+            [[ -f "$f.sig" ]] && cp "$f.sig" "dist/Prism-$VERSION-${{ matrix.rid }}-setup.exe.sig"
+          done
+          for f in target/release/bundle/appimage/*.AppImage; do
+            cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.AppImage"
+            [[ -f "$f.sig" ]] && cp "$f.sig" "dist/Prism-$VERSION-${{ matrix.rid }}.AppImage.sig"
+          done
           for f in target/release/bundle/deb/*.deb; do cp "$f" "dist/Prism-$VERSION-${{ matrix.rid }}.deb"; done
           ls -la dist
 

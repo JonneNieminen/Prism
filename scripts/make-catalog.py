@@ -1,7 +1,8 @@
 """Regenerate catalog/index.json (the default model catalog).
 python3 scripts/make-catalog.py  — hashes/sizes come from tools/export/out and the
 pinned values below. Demucs variants are re-hosted on this repo's `models-v1`
-release (MIT); UVR MDX-Net models link to the official UVR model repository."""
+release (MIT); UVR MDX-Net models link to the official UVR model repository; BS-RoFormer-SW
+links to its ONNX export on Hugging Face (no licence published, flagged non-commercial)."""
 import json, pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -50,9 +51,32 @@ def mdx(id_, title, file, sha, size, n_fft, comp, primary, desc):
         "params": {"nFft": n_fft, "hop": 1024, "dimF": 3072, "dimT": 256, "compensate": comp},
     }, "files": [{"file": file, "url": UVR + file, "bytes": size}]}
 
+RF_Q = {"fast": {"shifts": 0, "overlap": 0.15}, "balanced": {"shifts": 0, "overlap": 0.25}, "best": {"shifts": 0, "overlap": 0.5}}
+
+def bs_roformer_sw():
+    """BS-RoFormer-SW (6 stems), the ONNX export by elicwhite. Linked, never re-hosted: the weights
+    carry no published licence (community checkpoint), so the entry is flagged non-commercial."""
+    return {"manifest": {
+        "schemaVersion": 1, "id": "bs-roformer-sw", "name": "BS-RoFormer · 6 stems (SW)", "version": "1.0",
+        "architecture": "bs-roformer", "weights": "bs_roformer_sw_6stem_fp16.onnx",
+        "sha256": "d3d2bac77a7023282cb5f35a5807179e34076b60589867b572275f1a8ec36444",
+        "sampleRate": 44100, "channels": 2, "stems": stems(["bass", "drums", "other", "vocals", "guitar", "piano"]),
+        "chunkSeconds": 4.0, "overlap": 0.25,
+        "license": "No licence published (community checkpoint)",
+        "licenseUrl": "https://github.com/ZFTurbo/Music-Source-Separation-Training/issues/248",
+        "nonCommercial": True, "cpuOnly": True, "author": "Unknown (community checkpoint)",
+        "description": "The cleanest guitar available, plus piano, vocals, drums and bass. Large: runs on the CPU only, at about half real-time speed. The weights have no published licence, so treat the output as non-commercial.",
+        "homepage": "https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx",
+        "hints": {"speed": 1, "quality": 5}, "quality": RF_Q,
+        "params": {"nFft": 2048, "hop": 512, "chunkSamples": 176400},
+    }, "files": [{"file": "bs_roformer_sw_6stem_fp16.onnx",
+                  "url": "https://huggingface.co/elicwhite/bs-roformer-sw-6stem-onnx/resolve/main/bs_roformer_sw_6stem_fp16.onnx",
+                  "bytes": 352778874}]}
+
 catalog = {"schemaVersion": 1, "models": [
     demucs("htdemucs_6s", "Demucs v4 · 6 stems", "Adds guitar and piano. Piano separation is still experimental.", {"speed": 3, "quality": 3}),
     demucs("htdemucs_ft", "Demucs v4 · fine-tuned", "Four specialised models, one per stem. Cleanest Demucs results, about 4× slower.", {"speed": 1, "quality": 5}),
+    bs_roformer_sw(),
     mdx("uvr-mdx-voc-ft", "MDX-Net · Vocals FT", "UVR-MDX-NET-Voc_FT.onnx",
         "534b2070fcc7df514b13ef660dc8cbb328679c2374d04354a5c42bb14ecce111", 66762490, 7680, 1.021, "vocals",
         "Two stems: very clean vocals, and everything else as the instrumental."),

@@ -291,6 +291,7 @@ function SourceCard() {
   const separate = useApp((s) => s.separate);
   const updateSettings = useApp((s) => s.updateSettings);
   const jobError = useApp((s) => s.jobError);
+  const go = useApp((s) => s.go);
 
   const list = (models?.listing.models ?? []).filter((m) => !m.problem && !settings.hiddenModels.includes(m.manifest.id));
   const modelId = list.find((m) => m.manifest.id === settings.activeModelId)?.manifest.id ?? list[0]?.manifest.id;
@@ -387,6 +388,12 @@ function SourceCard() {
               );
             })}
           </div>
+
+          {!list.some((m) => m.manifest.stems.some((s) => s.id === "guitar")) && (
+            <button className="mt-2.5 text-left text-[12px] text-muted hover:text-text" onClick={() => go("models")} data-tip={t("Open Models to add the 6-stem model")}>
+              {t("Need guitar as its own stem? Get the 6-stem model in Models.")}
+            </button>
+          )}
 
           <div className="mt-5 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">

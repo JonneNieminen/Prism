@@ -106,6 +106,7 @@ pub fn build<R: Runtime>(app: &AppHandle<R>, lang: Language) -> tauri::Result<Me
         .separator()
         .item(&item("karaoke", "Karaoke (Remove Vocals)", None)?)
         .item(&item("acapella", "A Cappella (Vocals Only)", None)?)
+        .item(&item("noGuitar", "Remove Guitar", None)?)
         .item(&item("resetMix", "Reset Mix", None)?)
         .build()?;
 
@@ -164,6 +165,7 @@ fn tr(lang: Language, text: &str) -> String {
             ("Mute / Unmute", "Mykistä / palauta ääni"),
             ("Karaoke (Remove Vocals)", "Karaoke (poista laulu)"),
             ("A Cappella (Vocals Only)", "A cappella (vain laulu)"),
+            ("Remove Guitar", "Poista kitara"),
             ("Reset Mix", "Palauta miksaus"),
             ("Prism Help", "Prismin ohje"),
             ("Keyboard Shortcuts", "Pikanäppäimet"),
@@ -203,6 +205,7 @@ fn tr(lang: Language, text: &str) -> String {
             ("Mute / Unmute", "Tysta / slå på ljudet"),
             ("Karaoke (Remove Vocals)", "Karaoke (ta bort sången)"),
             ("A Cappella (Vocals Only)", "A cappella (bara sång)"),
+            ("Remove Guitar", "Ta bort gitarren"),
             ("Reset Mix", "Återställ mixen"),
             ("Prism Help", "Prism Hjälp"),
             ("Keyboard Shortcuts", "Kortkommandon"),

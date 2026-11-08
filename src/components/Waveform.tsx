@@ -52,7 +52,8 @@ export function Waveform({
         g.globalAlpha = alpha;
         const bar = 2;
         const gap = 1.5;
-        const n = Math.floor(w / (bar + gap));
+        const n = Math.max(2, Math.floor(w / (bar + gap)));
+        const stride = (w - bar) / (n - 1); // first bar at the left edge, last bar at the right edge
         const mid = height / 2;
         for (let i = 0; i < n; i++) {
           const a = Math.floor((i / n) * peaks.length);
@@ -63,7 +64,7 @@ export function Waveform({
           const v = Math.min(1, Math.pow(p / max, 0.7));
           const h = Math.max(1.5, v * (height - 4));
           g.beginPath();
-          g.roundRect(i * (bar + gap), mid - h / 2, bar, h, 1);
+          g.roundRect(i * stride, mid - h / 2, bar, h, 1);
           g.fill();
         }
       }

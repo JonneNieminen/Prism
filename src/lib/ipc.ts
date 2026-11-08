@@ -13,6 +13,7 @@ import type {
   Platform,
   Project,
   Quality,
+  ReleaseInfo,
   Settings,
   TrackInfo,
 } from "../bindings";
@@ -70,6 +71,11 @@ export type TrackEvent =
     }
   | { kind: "done"; jobId: string; path: string; title: string; separable: boolean }
   | { kind: "error"; jobId: string; error: AppError };
+export type UpdateInfo = { currentVersion: string; available: boolean; version: string | null; notes: string | null; date: string | null };
+export type UpdateEvent =
+  | { kind: "available"; info: UpdateInfo }
+  | { kind: "progress"; downloaded: number; total: number | null }
+  | { kind: "installed" };
 export type DragDrop = { type: "enter" | "over" | "leave" | "drop"; paths: string[] };
 
 export interface Backend {
@@ -114,6 +120,13 @@ export interface Backend {
   reveal(path: string): Promise<void>;
   /** Open a folder in the system file manager; `create` makes it first if it is missing. */
   openFolder(path: string, create?: boolean): Promise<void>;
+  /** Look for a new version now. */
+  checkForUpdates(): Promise<UpdateInfo>;
+  /** Download and install the update found by the last check, then restart. */
+  installUpdate(): Promise<void>;
+  /** What the latest GitHub release says, newer than this version or not. */
+  latestRelease(): Promise<ReleaseInfo>;
+  onUpdate(cb: (e: UpdateEvent) => void): Promise<() => void>;
   openUrl(url: string): Promise<void>;
   joinPath(dir: string, name: string): string;
   /** Native menu selections (ids match `CommandId`). */
@@ -186,6 +199,10 @@ async function tauriBackend(): Promise<Backend> {
       dialog.save({ defaultPath, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] }),
     reveal: (path) => opener.revealItemInDir(path),
     openFolder: (path, create = false) => invoke("open_folder", { path, create }),
+    checkForUpdates: () => invoke("check_for_updates"),
+    installUpdate: () => invoke("install_update"),
+    latestRelease: () => invoke("latest_release"),
+    onUpdate: (cb) => on("update", cb),
     openUrl: (url) => opener.openUrl(url),
     joinPath: (dir, name) => `${dir.replace(/\/+$/, "")}/${name}`,
     onMenu: (cb) => on<string>("menu", cb),

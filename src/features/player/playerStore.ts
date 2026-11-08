@@ -61,7 +61,7 @@ type PlayerState = {
   unload(): void;
   setStem(id: string, patch: Partial<Omit<StemMix, "id">>): void;
   setAll(fn: (m: StemMix) => Partial<Omit<StemMix, "id">>): void;
-  preset(kind: "karaoke" | "acapella" | "reset"): void;
+  preset(kind: "karaoke" | "acapella" | "noGuitar" | "guitarOnly" | "reset"): void;
   seekBy(secs: number): void;
   setLoop(region: LoopRegion | null, on?: boolean): void;
   toggleLoop(): boolean;
@@ -124,11 +124,12 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   },
 
   preset(kind) {
-    const hasVocals = get().mix.some((m) => m.id === "vocals");
     if (kind === "reset") return get().setAll(() => ({ muted: false, solo: false, volume: 1 }));
-    if (!hasVocals) return;
-    if (kind === "karaoke") get().setAll((m) => ({ solo: false, muted: m.id === "vocals" }));
-    else get().setAll((m) => ({ muted: false, solo: m.id === "vocals" }));
+    // "Remove X" mutes just that stem; "X only" solos it. Both need the stem to exist.
+    const stem = kind === "karaoke" || kind === "acapella" ? "vocals" : "guitar";
+    if (!get().mix.some((m) => m.id === stem)) return;
+    if (kind === "karaoke" || kind === "noGuitar") get().setAll((m) => ({ solo: false, muted: m.id === stem }));
+    else get().setAll((m) => ({ muted: false, solo: m.id === stem }));
   },
 
   seekBy(secs) {

@@ -18,4 +18,8 @@ libraryRetentionDays: number, recentLayout: RecentLayout,
 /**
  * Where downloaded tracks are saved; `None` means the "Prism" folder inside Downloads.
  */
-trackDownloadDir: string | null, language: Language, };
+trackDownloadDir: string | null, language: Language, 
+/**
+ * Check GitHub for a new version on start and every four hours.
+ */
+updatesEnabled: boolean, };

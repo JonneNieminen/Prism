@@ -1,13 +1,15 @@
-import { FolderOpen, FolderSearch, Trash2 } from "lucide-react";
+import { ChevronRight, ExternalLink, FolderOpen, FolderSearch, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ExportFormat, Language, Quality, Theme } from "../../bindings";
-import { Button, Card, Field, GroupLabel, PageHeader, Segmented, Switch } from "../../components/ui";
+import { ReleaseNotes } from "../../components/ReleaseNotes";
+import { Button, Card, Field, GroupLabel, PageHeader, Segmented, Switch, cx } from "../../components/ui";
 import { formatBytes, qualityLabel } from "../../lib/format";
 import { backend, toAppError, type AppInfo } from "../../lib/ipc";
 import { showInFileManager } from "../../lib/platform";
 import { keysFor } from "../../lib/shortcuts";
 import { useApp } from "../../store/app";
 import { usePlayer } from "../player/playerStore";
+import { useUpdates } from "./updateStore";
 import { LANGUAGES, tr } from "../../i18n";
 import { useT } from "../../i18n/useT";
 
@@ -32,6 +34,26 @@ export function SettingsView() {
   const [url, setUrl] = useState(settings.catalogUrl);
   const loadInfo = () => void backend().then((b) => b.appInfo()).then(setInfo);
   useEffect(loadInfo, []);
+  const up = useUpdates();
+  const [notesOpen, setNotesOpen] = useState(false);
+  const toggleNotes = () => {
+    setNotesOpen((o) => !o);
+    if (!notesOpen && !up.release) void up.loadRelease();
+  };
+  const updateHint =
+    up.status === "checking"
+      ? t("Checking for updates…")
+      : up.status === "available"
+        ? t("Prism {version} is available", { version: up.update?.version ?? "" })
+        : up.status === "installing"
+          ? up.progress === 1
+            ? t("Restarting Prism…")
+            : t("Downloading… {percent}%", { percent: Math.round((up.progress ?? 0) * 100) })
+          : up.status === "upToDate"
+            ? t("You're up to date.")
+            : up.status === "error"
+              ? t("Couldn't check for updates")
+              : undefined;
   const [dlDir, setDlDir] = useState<string | null>(null);
   useEffect(() => {
     void backend().then((b) => b.trackDownloadDir()).then(setDlDir).catch(() => setDlDir(null));
@@ -221,6 +243,65 @@ export function SettingsView() {
             {t(showInFileManager)}
           </Button>
         </Field>
+      </Group>
+
+      <Group title={t("Updates")}>
+        <Field label={t("Check for updates automatically")} hint={t("Prism checks GitHub when it starts and every 4 hours.")}>
+          <input
+            type="checkbox"
+            checked={settings.updatesEnabled}
+            onChange={(e) => void update({ updatesEnabled: e.target.checked })}
+            aria-label={t("Check for updates automatically")}
+            data-tip={t("Check for updates automatically")}
+            className="h-4 w-4 accent-[var(--accent)]"
+          />
+        </Field>
+        <Field label={t("Prism {version}", { version: info?.version ?? "" })} hint={updateHint}>
+          {up.status === "available" || up.status === "installing" ? (
+            <Button variant="primary" size="sm" onClick={() => void up.install()} disabled={up.status === "installing"} tip={t("Download the update and restart Prism")}>
+              {t("Install and restart")}
+            </Button>
+          ) : (
+            <Button size="sm" icon={<RefreshCw size={13} className={cx(up.status === "checking" && "animate-spin")} />} onClick={() => void up.check()} disabled={up.status === "checking"} tip={up.status === "error" && up.error ? up.error : t("Look for a new version now")}>
+              {t("Check for updates")}
+            </Button>
+          )}
+        </Field>
+        <div className="py-2.5">
+          <button
+            aria-expanded={notesOpen}
+            onClick={toggleNotes}
+            className="flex items-center gap-1.5 text-[13px] font-medium text-accent hover:underline"
+            data-tip={notesOpen ? t("Hide release notes") : t("Show release notes")}
+          >
+            <ChevronRight size={14} className={cx("transition-transform", notesOpen && "rotate-90")} />
+            {notesOpen ? t("Hide release notes") : t("Show release notes")}
+          </button>
+          {notesOpen && (
+            <div className="mt-3 rounded-lg border border-border bg-elevated/40 p-4">
+              {up.releaseState === "loading" && !up.release ? (
+                <p className="text-[13px] text-muted">{t("Loading the release notes…")}</p>
+              ) : up.release ? (
+                <>
+                  <div className="mb-2 flex items-baseline justify-between gap-3">
+                    <h3 className="text-[13px] font-semibold">{t("Release notes for Prism {version}", { version: up.release.version })}</h3>
+                    {up.release.date && <span className="shrink-0 text-[12px] text-muted">{t("Released {date}", { date: up.release.date })}</span>}
+                  </div>
+                  {up.release.notes.trim() ? <ReleaseNotes markdown={up.release.notes} /> : <p className="text-[13px] text-muted">{t("No release notes were published.")}</p>}
+                  <button
+                    className="mt-3 inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:underline"
+                    onClick={() => void backend().then((b) => b.openUrl(up.release!.url))}
+                    data-tip={t("Open the release page on GitHub")}
+                  >
+                    {t("Open on GitHub")} <ExternalLink size={11} />
+                  </button>
+                </>
+              ) : (
+                <p className="text-[13px] text-muted">{t("Couldn't load the release notes.")}</p>
+              )}
+            </div>
+          )}
+        </div>
       </Group>
 
       <Group title={t("Model catalog")}>

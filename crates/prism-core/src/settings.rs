@@ -66,6 +66,8 @@ pub struct Settings {
     /// Where downloaded tracks are saved; `None` means the "Prism" folder inside Downloads.
     pub track_download_dir: Option<String>,
     pub language: Language,
+    /// Check GitHub for a new version on start and every four hours.
+    pub updates_enabled: bool,
 }
 
 impl Default for Settings {
@@ -85,6 +87,7 @@ impl Default for Settings {
             recent_layout: RecentLayout::Tiles,
             track_download_dir: None,
             language: Language::En,
+            updates_enabled: true,
         }
     }
 }

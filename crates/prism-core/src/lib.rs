@@ -19,6 +19,7 @@ pub mod runtime;
 pub mod separator;
 pub mod settings;
 pub mod track;
+pub mod updates;
 pub mod util;
 
 pub use error::{PrismError, Result};

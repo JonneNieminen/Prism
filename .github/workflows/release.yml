@@ -2,8 +2,10 @@
 # Release with install notes. Run it from the Actions tab. The version is the latest vX.Y.Z tag
 # bumped by the chosen release type, unless an explicit version is given.
 #
-# PUSH-TO-APPS PLACEHOLDER: when in-app updates land, installed apps will read their update
-# feed from these releases; publish the feed files from the `publish` job.
+# In-app updates: installed apps read `latest.json` from the latest release. It is built in the
+# `publish` job from the signed updater files, which exist when the repository has the
+# TAURI_SIGNING_PRIVATE_KEY (and TAURI_SIGNING_PRIVATE_KEY_PASSWORD) secrets; without them the
+# release still publishes, just without in-app updates.
 name: Release
 
 on:
@@ -93,6 +95,7 @@ jobs:
     name: Package
     needs: [prepare, test]
     uses: ./.github/workflows/package.yml
+    secrets: inherit
     with:
       version: ${{ needs.prepare.outputs.version }}
       retention-days: 7
@@ -116,6 +119,7 @@ jobs:
       PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v7 # for build/make-latest-json.mjs
       - uses: actions/download-artifact@v8
         with:
           pattern: Prism-*
@@ -142,6 +146,14 @@ jobs:
             echo
             printf '%s\n' "$notes"
           } > notes.md
+
+      - name: Update feed (latest.json)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Just what changed, for the update prompt and Settings (not the install instructions).
+          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" --jq .body > update-notes.md
+          node build/make-latest-json.mjs artifacts "$VERSION" "$TAG" "$GITHUB_REPOSITORY" update-notes.md | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Publish
         shell: bash

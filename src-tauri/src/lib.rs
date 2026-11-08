@@ -5,6 +5,7 @@ mod jobs;
 mod menu;
 mod state;
 mod track;
+mod updates;
 
 use std::path::PathBuf;
 
@@ -157,6 +158,24 @@ fn classify_link(url: String) -> Res<prism_core::track::Link> {
 #[tauri::command]
 fn start_track_download(app: AppHandle, state: State<'_, AppState>, url: String) -> Res<String> {
     track::start(app, state.inner().clone(), url).map_err(app_err)
+}
+
+/// Look for a new version now (Settings → Check for updates).
+#[tauri::command]
+async fn check_for_updates(app: AppHandle) -> Res<updates::UpdateInfo> {
+    updates::check(&app).await.map_err(app_err)
+}
+
+/// Download and install the update found by the last check, then restart Prism.
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Res<()> {
+    updates::install(&app).await.map_err(app_err)
+}
+
+/// What the latest GitHub release says, whether or not it is newer than this version.
+#[tauri::command]
+async fn latest_release() -> Res<prism_core::updates::ReleaseInfo> {
+    blocking(|| prism_core::updates::latest_release(prism_core::updates::REPO)).await
 }
 
 /// Open a folder in the system file manager (Finder, Explorer, …). `create` makes it first, for
@@ -390,6 +409,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let st = AppState::new(app.handle())?;
             // Remove expired songs now, then re-check hourly for long-running sessions.
@@ -403,6 +423,8 @@ pub fn run() {
             });
             let lang = st.settings().language;
             app.manage(st);
+            app.manage(updates::Pending::default());
+            updates::start_background_checks(app.handle().clone());
             let m = menu::build(app.handle(), lang)?;
             app.set_menu(m)?;
             app.on_menu_event(|app, e| menu::forward(app, e.id().as_ref()));
@@ -421,6 +443,9 @@ pub fn run() {
             start_track_download,
             track_download_dir,
             open_folder,
+            check_for_updates,
+            install_update,
+            latest_release,
             list_projects,
             open_project,
             detect_music,

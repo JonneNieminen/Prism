@@ -1,7 +1,7 @@
 // Browser-only stand-in for the Rust backend, so the UI can be developed and
 // checked with `npm run dev` in a normal browser. Never used inside Tauri.
 import type { CatalogEntry, ModelInfo, ModelManifest, Project, Settings } from "../bindings";
-import type { Backend, DownloadEvent, JobEvent, OpenProject, TrackEvent } from "./ipc";
+import type { Backend, DownloadEvent, JobEvent, OpenProject, TrackEvent, UpdateEvent } from "./ipc";
 
 const demucs: ModelManifest = {
   schemaVersion: 1,
@@ -58,6 +58,7 @@ let settings: Settings = {
   recentLayout: "tiles",
   trackDownloadDir: null,
   language: "en",
+  updatesEnabled: true,
 };
 
 const projects: Project[] = [];
@@ -65,6 +66,7 @@ const listeners = {
   sep: new Set<(e: JobEvent) => void>(),
   dl: new Set<(e: DownloadEvent) => void>(),
   track: new Set<(e: TrackEvent) => void>(),
+  update: new Set<(e: UpdateEvent) => void>(),
 };
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const info = (m: ModelManifest, bundled: boolean): ModelInfo => ({
@@ -352,6 +354,38 @@ export function mockBackend(): Backend {
     pickSavePath: async (p) => p,
     reveal: async () => {},
     openFolder: async () => {},
+    // ?demo=update in the browser preview pretends a newer version exists.
+    checkForUpdates: async () => {
+      await sleep(900);
+      const newer = new URLSearchParams(location.search).get("demo") === "update";
+      return {
+        currentVersion: "1.0.0-dev",
+        available: newer,
+        version: newer ? "1.1.0" : null,
+        notes: newer ? "- Download tracks from a link\n- Finnish and Swedish" : null,
+        date: newer ? "2026-11-08" : null,
+      };
+    },
+    installUpdate: async () => {
+      const emit = (e: UpdateEvent) => listeners.update.forEach((l) => l(e));
+      for (let i = 1; i <= 10; i++) {
+        emit({ kind: "progress", downloaded: i * 3_500_000, total: 35_000_000 });
+        await sleep(250);
+      }
+      emit({ kind: "installed" });
+    },
+    latestRelease: async () => {
+      await sleep(500);
+      return {
+        version: "1.0.0",
+        name: "Prism 1.0.0",
+        url: "https://github.com/JonneNieminen/Prism/releases/tag/v1.0.0",
+        date: "2026-11-07",
+        prerelease: false,
+        notes: "## What's new\n\n- **Download a track** from a YouTube, SoundCloud, Instagram or TikTok link\n- A live log shows exactly what Prism is doing while it separates\n- English, Finnish and Swedish\n- Scroll over a volume slider to change it\n\n## Fixes\n\n- The playhead now lands exactly where you click\n- Cancel takes effect at once",
+      };
+    },
+    onUpdate: async (cb) => (listeners.update.add(cb), () => void listeners.update.delete(cb)),
     openUrl: async (u) => void window.open(u, "_blank"),
     joinPath: (dir, name) => `${dir.replace(/\/+$/, "")}/${name}`,
     onMenu: async () => () => {},

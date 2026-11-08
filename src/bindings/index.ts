@@ -27,6 +27,7 @@ export type * from "./Quality";
 export type * from "./QualityPreset";
 export type * from "./QualityPresets";
 export type * from "./RecentLayout";
+export type * from "./ReleaseInfo";
 export type * from "./Settings";
 export type * from "./StemDef";
 export type * from "./StemSource";

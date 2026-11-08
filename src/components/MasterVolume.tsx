@@ -36,10 +36,11 @@ export function MasterVolume() {
         </button>
         <input
           type="range"
+          data-wheel
           className="prism-range min-w-0 flex-1"
           aria-label={t("Master volume")}
           aria-valuetext={`${shown}%`}
-          {...tipAttrs({ tip: t("Master volume for everything Prism plays · double-click to reset"), shortcut: "masterUp" })}
+          {...tipAttrs({ tip: t("Master volume for everything Prism plays · scroll to adjust · double-click to reset"), shortcut: "masterUp" })}
           min={0}
           max={1}
           step={0.01}

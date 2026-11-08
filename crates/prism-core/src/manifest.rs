@@ -45,6 +45,10 @@ pub struct ModelManifest {
     /// Force the non-commercial flag (otherwise inferred from `license`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub non_commercial: Option<bool>,
+    /// Always run on the CPU, never on the GPU / Neural Engine. For models the accelerator path
+    /// can't handle (BS-RoFormer needs minutes to compile and then exhausts memory).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_only: Option<bool>,
     pub author: String,
     pub description: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -152,6 +156,10 @@ impl ModelManifest {
             Weights::Single(f) => vec![WeightFile { file: f.clone(), sha256: self.sha256.clone(), stem_weights: None }],
             Weights::Many(v) => v.clone(),
         }
+    }
+
+    pub fn runs_on_cpu_only(&self) -> bool {
+        self.cpu_only.unwrap_or(false)
     }
 
     pub fn is_non_commercial(&self) -> bool {
@@ -388,9 +396,9 @@ mod tests {
     #[test]
     fn rejects_unknown_architecture_listing_supported() {
         let mut v = base();
-        v["architecture"] = "bs-roformer".into();
+        v["architecture"] = "scnet".into();
         let e = check(v).unwrap_err();
-        assert!(e.contains("demucs") && e.contains("mdx-net"), "{e}");
+        assert!(e.contains("demucs") && e.contains("mdx-net") && e.contains("bs-roformer"), "{e}");
     }
 
     #[test]
@@ -401,6 +409,14 @@ mod tests {
         let mut v = base();
         v["stems"][0]["color"] = "red".into();
         assert!(check(v).is_err());
+    }
+
+    #[test]
+    fn cpu_only_is_optional() {
+        assert!(!check(base()).unwrap().runs_on_cpu_only());
+        let mut v = base();
+        v["cpuOnly"] = true.into();
+        assert!(check(v).unwrap().runs_on_cpu_only());
     }
 
     #[test]
