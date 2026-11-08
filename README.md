@@ -47,6 +47,7 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 - **Separate** MP3, WAV, FLAC, M4A (AAC/ALAC) and OGG into stems with Demucs v4 — bundled, works offline from the first launch.
 - **Remove or isolate instruments** live: mute, solo and set the volume of each stem; one-click *Karaoke* and *A cappella*.
 - **Synced multi-stem player** with a shared playhead, waveforms and full keyboard control.
+- **Loop a part** to practice it: shift-drag across a waveform (or press **I** and **O**) and every stem loops in sync. Each song remembers its mix and loop.
 - **Export** a single stem, all stems as a `.zip`, or exactly the mix you hear — WAV (24-bit), FLAC or MP3 (128–320 kbps).
 - **Key and tempo detection**: every song gets an estimated BPM and musical key (with the Camelot code), shown in the player header and the library. Songs separated earlier get it when you open them.
 - **Master volume**: one slider and a sound on/off switch in the sidebar, available in every view and remembered between launches.
@@ -107,6 +108,8 @@ When separation finishes the player opens. Every stem plays in sync.
 - Drag a stem's slider to change its volume (up to 150%); double-click it to reset.
 - **Karaoke** removes the vocals, **A cappella** keeps only the vocals, **Reset** turns everything back on.
 - Click a waveform to jump there, or drag to scrub.
+- **Loop a part**: hold **Shift** and drag across a waveform, or press **I** at the start and **O** at the end. **L** turns the loop on and off, and the **×** next to it clears it. All stems loop together, sample-accurately.
+- Prism remembers each song's mix and loop, so it sounds the way you left it when you reopen it from the Library.
 
 ### 3. Export
 
@@ -149,7 +152,8 @@ Prism shows the shortcuts for your system: hover any button to see its shortcut,
 | Back / forward 5 s | **←** / **→** | Solo stem 1–9 | **Shift+1**–**Shift+9** (**⇧1**–**⇧9** on macOS) |
 | Back / forward 15 s | **Shift+←** / **Shift+→** | Karaoke (remove vocals) | **K** |
 | Go to start | **0** | A cappella (vocals only) | **A** |
-| | | Reset mix | **R** |
+| Loop from here / up to here | **I** / **O** | Reset mix | **R** |
+| Loop on / off | **L** | | |
 
 | Window | macOS | Windows | Linux |
 |---|---|---|---|
@@ -179,6 +183,7 @@ cargo test --workspace                     # unit + end-to-end (decode → separ
 PRISM_TEST_AUDIO=~/Music/song.mp3 cargo test -p prism-core --test end_to_end
 cargo clippy --workspace --all-targets -- -D warnings
 npm run typecheck
+npm test                                   # UI unit tests (Vitest)
 ```
 
 CI ([`build.yml`](.github/workflows/build.yml)) runs all checks on every push and pull request and builds the `.dmg` as a downloadable artifact.

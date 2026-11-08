@@ -8,7 +8,7 @@ import { stemColor } from "../../lib/colors";
 import { formatBytes, formatDate, formatMusic, formatTime, QUALITY_LABEL } from "../../lib/format";
 import { backend, toAppError } from "../../lib/ipc";
 import { useApp } from "../../store/app";
-import { usePlayer } from "../player/playerStore";
+import { forgetPlayerState, usePlayer } from "../player/playerStore";
 
 export function LibraryView() {
   const projects = useApp((s) => s.projects);
@@ -32,6 +32,7 @@ export function LibraryView() {
     try {
       if (target === "all") await b.clearCache(true, false);
       else await b.deleteProject(target.id);
+      forgetPlayerState(target === "all" ? "all" : target.id);
       if (target === "all" || current?.project.id === target.id) {
         usePlayer.getState().unload();
         useApp.setState({ project: null });

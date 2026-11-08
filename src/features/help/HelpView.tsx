@@ -60,6 +60,10 @@ const SECTIONS: Section[] = [
           Click a waveform to jump there, or drag to scrub. <K k={["space"]} /> plays and pauses, <K k={["←"]} /> <K k={["→"]} /> skip 5 seconds and the number keys mute
           stems 1–9 (hold <K k={["shift"]} /> to solo).
         </li>
+        <li>
+          <b>Loop a part</b> to practice it: <K k={["shift"]} />-drag across a waveform, or press <K k={["I"]} /> at the start and <K k={["O"]} /> at the end. <K k={["L"]} /> turns the
+          loop on and off. Every stem loops together, and Prism remembers each song's mix and loop for the next time you open it.
+        </li>
       </ul>
     ),
   },

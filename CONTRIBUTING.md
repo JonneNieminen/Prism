@@ -16,6 +16,7 @@ npx tauri dev
 
 ```bash
 npm run typecheck
+npm test
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace

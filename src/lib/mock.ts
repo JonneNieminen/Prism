@@ -121,9 +121,9 @@ function synthStem(kind: number, seconds = 24, sr = 22050): string {
   return URL.createObjectURL(new Blob([header, data.buffer], { type: "audio/wav" }));
 }
 
-function demoProject(title: string): Project {
+function demoProject(title: string, id: string = crypto.randomUUID()): Project {
   return {
-    id: crypto.randomUUID(),
+    id,
     title,
     artist: "Demo Artist",
     sourceFileName: `${title}.mp3`,
@@ -142,7 +142,7 @@ function demoProject(title: string): Project {
 const urls = new Map<string, Record<string, string>>();
 
 export function mockBackend(): Backend {
-  if (projects.length === 0) projects.push({ ...demoProject("Midnight Drive"), createdAt: Date.now() - 86_400_000 * 2 });
+  if (projects.length === 0) projects.push({ ...demoProject("Midnight Drive", "demo-midnight-drive"), createdAt: Date.now() - 86_400_000 * 2 });
   return {
     appInfo: async () => ({
       version: "1.0.0-dev",

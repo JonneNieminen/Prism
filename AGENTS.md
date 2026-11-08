@@ -13,7 +13,7 @@ Local AI stem separation desktop app. Tauri 2 + React/TS/Vite/Tailwind 4/Motion;
 ## Commands (prefix cargo with `PATH=/opt/homebrew/opt/rustup/bin:$PATH` on this Mac)
 - UI only, mock backend: `npm run dev` · typecheck: `npm run typecheck`
 - App: `npx tauri dev` · release `.app/.dmg`: `npx tauri build`
-- Before pushing (same as CI): `npm run build`, `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
+- Before pushing (same as CI): `npm run build`, `npm test` (Vitest, `src/**/*.test.ts`), `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`
 - Rust tests (also regenerates `src/bindings`): `cargo test -p prism-core` (e2e test needs weights; `PRISM_TEST_AUDIO=song.mp3` uses real music)
 - Parity: `cargo build -p prism-cli && ./target/debug/prism separate x.wav --model models/htdemucs --shifts 0 --overlap 0.25 --cpu`, then `prism compare`.
 
@@ -24,6 +24,7 @@ Local AI stem separation desktop app. Tauri 2 + React/TS/Vite/Tailwind 4/Motion;
 - Look: flat macOS style (no glass, gradients or glows), one accent. Colors only via CSS variables in `src/styles/tokens.css` (dark + light); stem colors via `lib/colors.ts`.
 - Every control gets a tooltip: `data-tip="…"` (+ `data-shortcut="<command id>"`), or `tip`/`shortcut` props on `Button`/`IconButton`/`Segmented`. Never use `title=`.
 - Shortcuts: one table in `src/lib/shortcuts.ts` → `lib/commands.ts`. Write keys with platform-neutral tokens (`"mod"` = ⌘ on macOS, Ctrl elsewhere; `platforms` for OS-only rows) and never hard-code ⌘/⇧ in UI text: use `keysFor`/`formatKeys`/`capsOf`. Mirror `mod` shortcuts in `src-tauri/src/menu.rs` (`CmdOrCtrl`) and the README table.
+- Player loop and remembered mix: the engine loops with the sources' own loop points (`setLoop`, `loopPosition`); `playerStore` keeps `loop`/`loopOn` and saves mix + loop per project in localStorage (`prism.player.<id>`, removed when the song is deleted).
 - Master volume: `lib/audio/master.ts` (shared store, persisted) drives the engine's master gain; the control lives in the sidebar (`components/MasterVolume.tsx`) so it is available in every view.
 - Logo ("Bend"): edit `design/logo/make.py`, run it, then `scripts/render-icons.sh` (legacy icons + `Assets.car` for macOS 26+, needs Chrome and Xcode). In-app mark: `src/components/Logo.tsx`. README art: `design/banners/render.sh`.
 - CI (mirrors the Lumio repo): `build.yml` checks → tests on 6 platforms → `package.yml` installers; `release.yml` is manual (semver bump → GitHub release). Intel Macs use a bundled ONNX Runtime 1.23.2 dylib (`build/fetch-onnxruntime-intel.sh`, `ORT_DYLIB_PATH`).

@@ -31,6 +31,9 @@ export type CommandId =
   | "seekBackLong"
   | "seekForwardLong"
   | "toStart"
+  | "loopToggle"
+  | "loopIn"
+  | "loopOut"
   | "karaoke"
   | "acapella"
   | "resetMix"
@@ -82,6 +85,9 @@ const ALL_SHORTCUTS: Shortcut[] = [
   { id: "seekBackLong", label: "Back 15 seconds", keys: ["shift", "←"], group: "Player" },
   { id: "seekForwardLong", label: "Forward 15 seconds", keys: ["shift", "→"], group: "Player" },
   { id: "toStart", label: "Go to start", keys: ["0"], group: "Player" },
+  { id: "loopIn", label: "Loop from here (set start)", keys: ["I"], group: "Player" },
+  { id: "loopOut", label: "Loop up to here (set end)", keys: ["O"], group: "Player" },
+  { id: "loopToggle", label: "Loop on / off", keys: ["L"], group: "Player" },
 
   { id: "muteStem", label: "Mute / unmute stem 1–9", keys: ["1", "–", "9"], group: "Stems" },
   { id: "soloStem", label: "Solo stem 1–9", keys: ["shift", "1", "–", "9"], group: "Stems" },
@@ -172,5 +178,8 @@ export function matchEvent(e: KeyboardEvent): { id: CommandId } | { id: "muteSte
   if (k === "k") return { id: "karaoke" };
   if (k === "a") return { id: "acapella" };
   if (k === "r") return { id: "resetMix" };
+  if (k === "i") return { id: "loopIn" };
+  if (k === "o") return { id: "loopOut" };
+  if (k === "l") return { id: "loopToggle" };
   return null;
 }

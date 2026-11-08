@@ -84,6 +84,14 @@ export async function runCommand(id: CommandId | "muteStem" | "soloStem", index 
       return inPlayer ? player.seekBy(15) : undefined;
     case "toStart":
       return inPlayer ? player.engine?.seek(0) : undefined;
+    case "loopIn":
+      return inPlayer ? player.setLoopEdge("start") : undefined;
+    case "loopOut":
+      return inPlayer ? player.setLoopEdge("end") : undefined;
+    case "loopToggle":
+      if (inPlayer && !player.toggleLoop())
+        app.toast({ tone: "info", title: "No loop yet", body: "Shift-drag across a waveform, or press I and O at the start and end of the part to loop." });
+      return;
     case "karaoke":
       return inPlayer ? player.preset("karaoke") : undefined;
     case "acapella":

@@ -1,9 +1,11 @@
 import { motion } from "motion/react";
-import { Archive, Download, Headphones, MicOff, Pause, Play, RotateCcw, Share, SkipBack, Volume1, Volume2, VolumeX } from "lucide-react";
+import { Archive, Download, Headphones, MicOff, Pause, Play, Repeat, RotateCcw, Share, SkipBack, Volume1, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProjectStem } from "../../bindings";
 import { Waveform } from "../../components/Waveform";
-import { Button, Chip, Kbd, Keys, PageHeader, cx } from "../../components/ui";
+import { Button, Chip, IconButton, Kbd, Keys, PageHeader, cx } from "../../components/ui";
+import { MIN_LOOP } from "../../lib/audio/engine";
+import { runCommand } from "../../lib/commands";
 import { stemColor, withAlpha } from "../../lib/colors";
 import { capsOf, formatKeys } from "../../lib/shortcuts";
 import { formatBpm, formatTime, QUALITY_LABEL } from "../../lib/format";
@@ -30,6 +32,10 @@ export function PlayerView({ theme }: { theme: string }) {
   const setStem = usePlayer((s) => s.setStem);
   const setAll = usePlayer((s) => s.setAll);
   const preset = usePlayer((s) => s.preset);
+  const loop = usePlayer((s) => s.loop);
+  const loopOn = usePlayer((s) => s.loopOn);
+  const setLoop = usePlayer((s) => s.setLoop);
+  const setLoopDraft = usePlayer((s) => s.setLoopDraft);
   const [hovered, setHovered] = useState<string | null>(null);
   const ready = loading >= 1 && !!engine;
 
@@ -74,7 +80,9 @@ export function PlayerView({ theme }: { theme: string }) {
 
   // Click or drag on any waveform to scrub. The pointer is captured so the drag keeps
   // working outside the lane, and the audio only restarts once, on release.
+  // Shift-drag selects a loop region instead.
   const scrubbing = useRef(false);
+  const loopAnchor = useRef<number | null>(null);
   const timeAt = (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * (engine?.duration ?? 0);
@@ -82,14 +90,33 @@ export function PlayerView({ theme }: { theme: string }) {
   const scrubStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!engine?.duration || e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
+    if (e.shiftKey) {
+      const t = timeAt(e);
+      loopAnchor.current = t;
+      setLoopDraft({ start: t, end: t });
+      return;
+    }
     scrubbing.current = true;
     engine.beginScrub();
     engine.scrubTo(timeAt(e));
   };
   const scrubMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (scrubbing.current) engine?.scrubTo(timeAt(e));
+    if (loopAnchor.current !== null) {
+      const a = loopAnchor.current;
+      const t = timeAt(e);
+      setLoopDraft({ start: Math.min(a, t), end: Math.max(a, t) });
+    } else if (scrubbing.current) engine?.scrubTo(timeAt(e));
   };
   const scrubEnd = () => {
+    if (loopAnchor.current !== null) {
+      loopAnchor.current = null;
+      const draft = usePlayer.getState().loopDraft;
+      if (draft && draft.end - draft.start >= MIN_LOOP) {
+        setLoop(draft, true);
+        engine?.seek(draft.start);
+      } else setLoopDraft(null);
+      return;
+    }
     if (!scrubbing.current) return;
     scrubbing.current = false;
     engine?.endScrub();
@@ -193,6 +220,25 @@ export function PlayerView({ theme }: { theme: string }) {
           />
           <span className="tabular w-10 text-[12px] text-muted">{formatTime(engine?.duration || project.durationSecs)}</span>
         </div>
+        <div className="flex items-center gap-0.5 border-l border-border pl-4">
+          <Button
+            size="sm"
+            variant={loopOn ? "secondary" : "ghost"}
+            icon={<Repeat size={13} />}
+            aria-pressed={loopOn}
+            onClick={() => void runCommand("loopToggle")}
+            disabled={!ready}
+            tip={loop ? (loopOn ? "Stop looping" : "Loop this part again") : "Loop a part: shift-drag across a waveform, or press I and O at its start and end"}
+            shortcut="loopToggle"
+          >
+            <span className="tabular">{loop ? `${formatTime(loop.start)}–${formatTime(loop.end)}` : "Loop"}</span>
+          </Button>
+          {loop && (
+            <IconButton label="Clear loop" tip="Clear the loop" onClick={() => setLoop(null)}>
+              <X size={13} />
+            </IconButton>
+          )}
+        </div>
         {hasVocals && (
           <div className="flex items-center gap-1 border-l border-border pl-4">
             <Button size="sm" variant={isKaraoke ? "secondary" : "ghost"} icon={<MicOff size={13} />} aria-pressed={isKaraoke} onClick={() => preset("karaoke")} tip="Remove the vocals" shortcut="karaoke">
@@ -246,8 +292,9 @@ export function PlayerView({ theme }: { theme: string }) {
             />
           );
         })}
-        {/* shared playhead across all lanes */}
+        {/* shared loop region and playhead across all lanes */}
         <div className="pointer-events-none absolute inset-y-0 right-[96px]" style={{ left: CONTROLS_W + 16 }}>
+          <LoopOverlay duration={engine?.duration || project.durationSecs} />
           <div ref={headRef} className="absolute inset-y-0 w-px bg-text/70" style={{ left: "0%" }} />
         </div>
       </div>
@@ -268,6 +315,13 @@ export function PlayerView({ theme }: { theme: string }) {
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>K</Kbd> karaoke
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Kbd>I</Kbd>
+          <Kbd>O</Kbd> set loop
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Kbd>L</Kbd> loop
         </span>
       </div>
 
@@ -371,7 +425,7 @@ function StemRow(props: {
         onPointerMove={props.onScrubMove}
         onPointerUp={props.onScrubEnd}
         onPointerCancel={props.onScrubEnd}
-        data-tip="Click to jump here, drag to scrub"
+        data-tip={`Click to jump here, drag to scrub · ${formatKeys(["shift"])}-drag to loop a part`}
       >
         {/* Peaks come from the library, so the waveform shows instantly; audio decodes in the background. */}
         <div className={cx("transition-opacity duration-300", props.loading && "animate-pulse opacity-60")}>
@@ -387,6 +441,28 @@ function StemRow(props: {
         <Download size={15} />
       </button>
     </motion.div>
+  );
+}
+
+/** The loop region, live while it is being shift-dragged. Dashed edges when looping is off. */
+function LoopOverlay({ duration }: { duration: number }) {
+  const draft = usePlayer((s) => s.loopDraft);
+  const saved = usePlayer((s) => s.loop);
+  const on = usePlayer((s) => s.loopOn) || draft !== null;
+  const loop = draft ?? saved;
+  if (!loop || !duration || loop.end <= loop.start) return null;
+  const edge = `1px ${on ? "solid" : "dashed"} var(--accent)`;
+  return (
+    <div
+      className="absolute inset-y-0"
+      style={{
+        left: `${(loop.start / duration) * 100}%`,
+        width: `${((loop.end - loop.start) / duration) * 100}%`,
+        background: on ? "var(--accent-soft)" : "transparent",
+        borderLeft: edge,
+        borderRight: edge,
+      }}
+    />
   );
 }
 
