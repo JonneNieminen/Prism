@@ -39,6 +39,10 @@ const SECTIONS: Section[] = [
         <li>
           You can keep browsing while it runs. Cancel any time with <K k={["mod", "."]} />.
         </li>
+        <li>
+          Drop several songs at once, or more while one is separating, to queue them under <b>Up next</b>. They run one after another with the same model and quality,
+          and each finished song goes to the Library with a notification to open it.
+        </li>
       </ul>
     ),
   },

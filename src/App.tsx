@@ -68,7 +68,9 @@ function useKeyboard() {
         else {
           useApp.setState({ dragOver: false });
           const st = useApp.getState();
-          if (e.paths[0]) void (st.view === "analyze" ? st.analyze(e.paths[0]) : st.loadSource(e.paths[0]));
+          if (!e.paths[0]) return;
+          if (st.view === "analyze") void st.analyze(e.paths[0]);
+          else st.addSongs(e.paths);
         }
       });
       if (alive) off = o;

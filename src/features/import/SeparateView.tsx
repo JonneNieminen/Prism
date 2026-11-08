@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowRight, Check, FileAudio, FileWarning, LayoutGrid, List, MemoryStick, Music2, RotateCcw, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Check, FileAudio, ListOrdered, FileWarning, LayoutGrid, List, MemoryStick, Music2, RotateCcw, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppError, ModelInfo, Quality } from "../../bindings";
 import { Waveform } from "../../components/Waveform";
@@ -38,7 +38,61 @@ export function SeparateView() {
           </Fade>
         )}
       </AnimatePresence>
+      <QueueList />
     </div>
+  );
+}
+
+/** Songs waiting to be separated after the current one (drop several, or drop more while one runs). */
+function QueueList() {
+  const queue = useApp((s) => s.queue);
+  const remove = useApp((s) => s.removeFromQueue);
+  const clear = useApp((s) => s.clearQueue);
+  const models = useApp((s) => s.models);
+  const modelId = useApp((s) => s.lastRun?.modelId ?? s.settings?.activeModelId);
+  const quality = useApp((s) => s.lastRun?.quality ?? s.settings?.quality);
+  const modelName = models?.listing.models.find((m) => m.manifest.id === modelId)?.manifest.name ?? modelId;
+  return (
+    <AnimatePresence>
+      {queue.length > 0 && (
+        <motion.section
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 6 }}
+          transition={{ duration: 0.18 }}
+          aria-label="Up next"
+          className="card mx-auto mt-8 w-full max-w-[520px] p-3"
+        >
+          <div className="mb-1.5 flex items-center justify-between px-1">
+            <h2 className="flex items-center gap-2 text-[12px] font-semibold text-muted">
+              <ListOrdered size={13} /> Up next · {queue.length}
+            </h2>
+            <Button size="sm" variant="ghost" onClick={clear} tip="Remove every waiting song (the current one keeps going)">
+              Clear
+            </Button>
+          </div>
+          <ul>
+            {queue.map((q, i) => (
+              <li key={q.path} className="group flex h-8 items-center gap-2.5 rounded-md px-1.5 hover:bg-elevated">
+                <span className="tabular w-4 text-right text-[11px] text-faint">{i + 1}</span>
+                <FileAudio size={14} className="shrink-0 text-muted" />
+                <span className="min-w-0 flex-1 truncate text-[13px]" data-tip={q.path}>
+                  {q.name}
+                </span>
+                <IconButton label={`Remove ${q.name} from the queue`} tip="Remove from the queue" onClick={() => remove(q.path)} className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100">
+                  <X size={13} />
+                </IconButton>
+              </li>
+            ))}
+          </ul>
+          {modelName && quality && (
+            <p className="mt-1.5 px-1 text-[11px] text-faint">
+              Each uses {modelName} · {QUALITY_LABEL[quality]}, like the last separation. Finished songs go to the Library.
+            </p>
+          )}
+        </motion.section>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -85,7 +139,7 @@ function DropZone() {
         >
           <Upload size={22} />
         </motion.div>
-        <div className="text-[15px] font-medium">{over ? "Release to open" : "Drop a song here"}</div>
+        <div className="text-[15px] font-medium">{over ? "Release to open" : "Drop songs here"}</div>
         <div className="mt-1 text-[13px] text-muted">
           or <span className="font-medium text-accent">choose a file</span> <span className="ml-1 opacity-70">{keysFor("open")}</span>
         </div>
@@ -385,6 +439,7 @@ function Separating() {
   const cancel = useApp((s) => s.cancelJob);
   const models = useApp((s) => s.models);
   const [cancelling, setCancelling] = useState(false);
+  const queued = useApp((s) => s.queue.length);
   const stems = models?.listing.models.find((m) => m.manifest.id === job.modelId)?.manifest.stems ?? [{ id: "vocals" }, { id: "drums" }, { id: "bass" }, { id: "other" }];
   const current = STEPS.findIndex((x) => x.stage === job.stage);
   const now = useNow();
@@ -475,13 +530,13 @@ function Separating() {
               void cancel();
             }}
             disabled={cancelling}
-            tip="Stop separating. Nothing is saved."
+            tip={queued ? "Stop this song (nothing is saved) and go on with the next one" : "Stop separating. Nothing is saved."}
             shortcut="cancel"
           >
-            {cancelling ? "Cancelling…" : "Cancel"}
+            {cancelling ? "Cancelling…" : queued ? "Skip this song" : "Cancel"}
           </Button>
           <p className="mt-5 text-[12px] text-faint">
-            You can keep using Prism while this runs. Press <Keys keys={capsOf(["mod", "."])} /> to cancel.
+            You can keep using Prism while this runs, and drop more songs to queue them. Press <Keys keys={capsOf(["mod", "."])} /> to {queued ? "skip" : "cancel"}.
           </p>
         </div>
       </div>

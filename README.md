@@ -45,6 +45,7 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 ## Features
 
 - **Separate** MP3, WAV, FLAC, M4A (AAC/ALAC) and OGG into stems with Demucs v4 — bundled, works offline from the first launch.
+- **Queue songs**: drop several at once, or drop more while one is separating; they run one after another and land in the Library.
 - **Remove or isolate instruments** live: mute, solo and set the volume of each stem; one-click *Karaoke* and *A cappella*.
 - **Synced multi-stem player** with a shared playhead, waveforms and full keyboard control.
 - **Loop a part** to practice it: shift-drag across a waveform (or press **I** and **O**) and every stem loops in sync. Each song remembers its mix and loop.
@@ -91,6 +92,8 @@ Download the installer for your computer from [Releases](https://github.com/Jonn
 ### 1. Separate a song
 
 Drop a song onto the **Separate** screen, or press **⌘O** to choose one. Check the preview, pick a **model** and a **quality** and press **Separate** (**⌘↩**).
+
+Drop several songs at once — or more songs while one is separating — and they wait under **Up next**. Each one starts by itself when the previous finishes, with the same model and quality, and you get a notification with an **Open** button as each is ready. Remove a song from the queue with its **×**; **Skip this song** (**⌘.**) moves on to the next.
 
 | Quality | What it does | Speed (4-min song, M1 Pro) |
 |---|---|---|
