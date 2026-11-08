@@ -1,9 +1,10 @@
 import { Card, GroupLabel, Keys, PageHeader } from "../../components/ui";
-import { SHORTCUTS, type Group } from "../../lib/shortcuts";
+import { capsOf, SHORTCUTS, type Group } from "../../lib/shortcuts";
 
 const GROUPS: { group: Group; note?: string }[] = [
   { group: "General" },
   { group: "Navigation" },
+  { group: "Master volume", note: "Applies to everything Prism plays, in every view. The slider is in the sidebar." },
   { group: "Player", note: "In the player, when you're not typing in a field." },
   { group: "Stems", note: "Stems are numbered top to bottom in the player." },
   { group: "Window" },
@@ -21,7 +22,7 @@ export function ShortcutsView() {
               {SHORTCUTS.filter((s) => s.group === group).map((s) => (
                 <div key={s.id} className="flex h-10 items-center justify-between gap-4">
                   <span className="text-[13px]">{s.label}</span>
-                  <Keys keys={s.keys} />
+                  <Keys keys={capsOf(s.keys)} />
                 </div>
               ))}
             </Card>

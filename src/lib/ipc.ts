@@ -8,6 +8,7 @@ import type {
   MixGain,
   ModelListing,
   ModelManifest,
+  MusicInfo,
   Project,
   Quality,
   Settings,
@@ -23,6 +24,7 @@ export type AppInfo = {
   supportedExtensions: string[];
 };
 export type Probe = { info: TrackInfo; peaks: number[] };
+export type Analysis = Probe & { music: MusicInfo; secs: number };
 export type OpenProject = {
   project: Project;
   peaks: Record<string, number[]>;
@@ -39,6 +41,7 @@ export type JobEvent =
       fraction: number;
       etaSecs: number | null;
       device: string | null;
+      detail: string | null;
       note: string | null;
     }
   | { kind: "done"; jobId: string; project: Project | null }
@@ -54,10 +57,14 @@ export interface Backend {
   getSettings(): Promise<Settings>;
   setSettings(settings: Settings): Promise<Settings>;
   probeAudio(path: string): Promise<Probe>;
+  /** Key & BPM only (no separation). */
+  analyzeTrack(path: string): Promise<Analysis>;
   startSeparation(path: string, modelId: string, quality: Quality): Promise<string>;
   cancelJob(jobId: string): Promise<void>;
   listProjects(): Promise<Project[]>;
   openProject(id: string): Promise<OpenProject>;
+  /** Estimate key and tempo for a project saved before detection existed. */
+  detectMusic(id: string): Promise<Project>;
   renameProject(id: string, title: string): Promise<Project>;
   deleteProject(id: string): Promise<void>;
   clearCache(library: boolean, accelerator: boolean): Promise<void>;
@@ -101,6 +108,7 @@ async function tauriBackend(): Promise<Backend> {
     getSettings: () => invoke("get_settings"),
     setSettings: (settings) => invoke("set_settings", { settings }),
     probeAudio: (path) => invoke("probe_audio", { path }),
+    analyzeTrack: (path) => invoke("analyze_track", { path }),
     startSeparation: (path, modelId, quality) => invoke("start_separation", { path, modelId, quality }),
     cancelJob: (jobId) => invoke("cancel_job", { jobId }),
     listProjects: () => invoke("list_projects"),
@@ -112,6 +120,7 @@ async function tauriBackend(): Promise<Backend> {
       const stemUrls = Object.fromEntries(Object.entries(r.stemPaths).map(([k, p]) => [k, convertFileSrc(p)]));
       return { project: r.project, peaks: r.peaks, stemUrls };
     },
+    detectMusic: (id) => invoke("detect_music", { id }),
     renameProject: (id, title) => invoke("rename_project", { id, title }),
     deleteProject: (id) => invoke("delete_project", { id }),
     clearCache: (library, accelerator) => invoke("clear_cache", { library, accelerator }),

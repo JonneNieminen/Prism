@@ -1,3 +1,5 @@
+import type { MusicInfo } from "../bindings";
+
 export function formatTime(secs: number) {
   if (!Number.isFinite(secs) || secs < 0) secs = 0;
   const m = Math.floor(secs / 60);
@@ -35,3 +37,14 @@ export function formatDate(ms: number) {
 }
 
 export const QUALITY_LABEL = { fast: "Fast", balanced: "Balanced", best: "Best" } as const;
+
+/** "128 BPM", rounded to a whole number. */
+export function formatBpm(bpm: number) {
+  return `${Math.round(bpm)} BPM`;
+}
+
+/** Key and tempo as one short line for lists, e.g. "A♭ major · 128 BPM". Empty when unknown. */
+export function formatMusic(music: MusicInfo | null | undefined) {
+  if (!music) return "";
+  return [music.key?.name, music.bpm != null ? formatBpm(music.bpm) : null].filter(Boolean).join(" · ");
+}

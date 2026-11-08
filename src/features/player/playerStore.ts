@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { StemEngine, type StemMix } from "../../lib/audio/engine";
+import { masterGain, useMaster } from "../../lib/audio/master";
 import type { OpenProject } from "../../lib/ipc";
 
 // Lives outside React so playback survives navigating between views.
@@ -29,7 +30,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   load(p) {
     if (get().projectId === p.project.id) return;
     get().engine?.dispose();
-    const engine = new StemEngine();
+    const { volume, muted } = useMaster.getState();
+    const engine = new StemEngine(masterGain(volume, muted));
     const mix = p.project.stems.map((s) => ({ id: s.id, muted: false, solo: false, volume: 1 }));
     set({ projectId: p.project.id, engine, loading: 0.02, error: null, playing: false, mix });
     engine.subscribe(() => set({ playing: engine.isPlaying }));
@@ -76,3 +78,6 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     get().engine?.setMix(mix);
   },
 }));
+
+// The master level follows the shared store, whichever view changed it.
+useMaster.subscribe((m) => usePlayer.getState().engine?.setMasterGain(masterGain(m.volume, m.muted)));

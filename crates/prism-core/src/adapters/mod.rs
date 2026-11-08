@@ -11,7 +11,7 @@
 use std::path::Path;
 
 use crate::manifest::ModelManifest;
-use crate::runtime::RuntimeOptions;
+use crate::runtime::{LoadStep, RuntimeOptions};
 use crate::separator::Separator;
 use crate::{PrismError, Result};
 
@@ -29,10 +29,15 @@ pub fn validate(m: &ModelManifest) -> Result<()> {
     }
 }
 
-pub fn create(m: &ModelManifest, dir: &Path, rt: &RuntimeOptions) -> Result<Box<dyn Separator>> {
+pub fn create(
+    m: &ModelManifest,
+    dir: &Path,
+    rt: &RuntimeOptions,
+    on_step: &mut dyn FnMut(LoadStep),
+) -> Result<Box<dyn Separator>> {
     Ok(match m.architecture.as_str() {
-        "demucs" => Box::new(demucs::Demucs::new(m, dir, rt)?),
-        "mdx-net" => Box::new(mdx::MdxNet::new(m, dir, rt)?),
+        "demucs" => Box::new(demucs::Demucs::new(m, dir, rt, on_step)?),
+        "mdx-net" => Box::new(mdx::MdxNet::new(m, dir, rt, on_step)?),
         other => return Err(PrismError::InvalidModel(format!("Unsupported architecture “{other}”."))),
     })
 }

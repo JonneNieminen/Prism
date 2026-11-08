@@ -75,7 +75,7 @@ export function Waveform({
   }, [peaks, color, height, theme, normalize]);
 
   return (
-    <div ref={wrap} className="relative w-full transition-opacity duration-200" style={{ height, opacity: dimmed ? 0.35 : 1 }}>
+    <div ref={wrap} className="relative w-full" style={{ height, opacity: dimmed ? 0.35 : 1 }}>
       <canvas ref={base} className="absolute inset-0" aria-hidden />
       <div ref={progressRef} className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: progressRef ? "0%" : "100%" }}>
         <canvas ref={lit} className="absolute inset-y-0 left-0" aria-hidden />

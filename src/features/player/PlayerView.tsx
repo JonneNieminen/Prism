@@ -3,9 +3,10 @@ import { Archive, Download, Headphones, MicOff, Pause, Play, RotateCcw, Share, S
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProjectStem } from "../../bindings";
 import { Waveform } from "../../components/Waveform";
-import { Button, Chip, Kbd, PageHeader, cx } from "../../components/ui";
+import { Button, Chip, Kbd, Keys, PageHeader, cx } from "../../components/ui";
 import { stemColor, withAlpha } from "../../lib/colors";
-import { formatTime, QUALITY_LABEL } from "../../lib/format";
+import { capsOf, formatKeys } from "../../lib/shortcuts";
+import { formatBpm, formatTime, QUALITY_LABEL } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { ExportDialog } from "../export/ExportDialog";
 import { usePlayer } from "./playerStore";
@@ -16,7 +17,10 @@ const CONTROLS_W = 236;
 export function PlayerView({ theme }: { theme: string }) {
   const open = useApp((s) => s.project)!;
   const setExportTarget = useApp((s) => s.setExportTarget);
+  const ensureMusic = useApp((s) => s.ensureMusic);
+  const detected = useApp((s) => s.music[open.project.id]);
   const { project, peaks } = open;
+  const music = project.music ?? detected;
   const load = usePlayer((s) => s.load);
   const engine = usePlayer((s) => s.engine);
   const loading = usePlayer((s) => s.loading);
@@ -30,6 +34,8 @@ export function PlayerView({ theme }: { theme: string }) {
   const ready = loading >= 1 && !!engine;
 
   useEffect(() => load(open), [open, load]);
+  // Projects saved before key/tempo detection get it the first time they are opened.
+  useEffect(() => void ensureMusic(open.project), [open.project, ensureMusic]);
 
   // Imperative playhead: one rAF loop updates every progress layer, no React renders.
   const progressRefs = useRef(new Map<string, React.RefObject<HTMLDivElement | null>>());
@@ -109,6 +115,16 @@ export function PlayerView({ theme }: { theme: string }) {
           <span className="flex flex-wrap items-center gap-1.5">
             {project.artist && <span>{project.artist} ·</span>}
             <span className="tabular">{formatTime(project.durationSecs)}</span>
+            {music?.bpm != null && (
+              <Chip color="var(--accent)" tip={`Estimated tempo of the original mix${music.bpmConfidence < 0.4 ? " (low confidence)" : ""}. It can land on half or double time.`}>
+                {formatBpm(music.bpm)}
+              </Chip>
+            )}
+            {music?.key && (
+              <Chip color="var(--accent)" tip={`Estimated key of the original mix${music.key.confidence < 0.25 ? " (low confidence; the relative major or minor is close)" : ""} · Camelot ${music.key.camelot}`}>
+                {music.key.name} · {music.key.camelot}
+              </Chip>
+            )}
             <span>·</span>
             <Chip tip="The model that made these stems">{project.model.name}</Chip>
             <Chip tip="Quality setting used">{QUALITY_LABEL[project.quality]}</Chip>
@@ -248,8 +264,7 @@ export function PlayerView({ theme }: { theme: string }) {
           <Kbd>1</Kbd>–<Kbd>{Math.min(9, project.stems.length)}</Kbd> mute
         </span>
         <span className="flex items-center gap-1.5">
-          <Kbd>⇧</Kbd>
-          <Kbd>1</Kbd> solo
+          <Keys keys={capsOf(["shift", "1"])} /> solo
         </span>
         <span className="flex items-center gap-1.5">
           <Kbd>K</Kbd> karaoke
@@ -303,17 +318,28 @@ function StemRow(props: {
       <button
         aria-pressed={props.muted}
         aria-label={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`}
-        data-tip={`${props.muted ? "Unmute" : "Mute"} ${stem.label} · ⇧-click to change several  ${n}`}
+        data-tip={`${props.muted ? "Unmute" : "Mute"} ${stem.label} · ${formatKeys(["shift"])}-click to change several  ${n}`}
         onClick={(e) => props.onMute(e.shiftKey)}
         onMouseDown={(e) => e.shiftKey && e.preventDefault()}
         className="absolute inset-y-0 left-[3px] cursor-pointer select-none hover:bg-elevated/50"
         style={{ width: CONTROLS_W + 13 }}
       />
-      <div className="pointer-events-none relative flex shrink-0 items-center gap-3 pl-5" style={{ width: CONTROLS_W }}>
+      <div className="pointer-events-none relative flex shrink-0 items-center gap-3 pl-3" style={{ width: CONTROLS_W }}>
+        {/* Mute dot: filled = playing, hollow = muted. No transition, so it flips with the sound. */}
+        <button
+          aria-pressed={props.muted}
+          aria-label={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`}
+          data-tip={props.muted ? `${stem.label} is muted — click to unmute` : `${stem.label} is playing — click to mute`}
+          onClick={(e) => props.onMute(e.shiftKey)}
+          onMouseDown={(e) => e.shiftKey && e.preventDefault()}
+          className="pointer-events-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-elevated"
+        >
+          <span className="block h-3.5 w-3.5 rounded-full border-2" style={{ borderColor: color, background: props.muted ? "transparent" : color }} />
+        </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cx("truncate text-[13px] font-medium", !props.audible && "text-muted")}>{stem.label}</span>
-            <span className="text-[11px] text-faint" data-tip={`Press ${n} to mute, ⇧${n} to solo`}>
+            <span className="text-[11px] text-faint" data-tip={`Press ${n} to mute, ${formatKeys(["shift", String(n)])} to solo`}>
               {n}
             </span>
           </div>
@@ -336,7 +362,7 @@ function StemRow(props: {
           </div>
         </div>
         <div className="pointer-events-auto flex gap-1">
-          <ToggleChip label="S" tip={props.solo ? `Stop soloing ${stem.label}` : `Solo ${stem.label}`} keys={`⇧${n}`} on={props.solo} color={color} onClick={props.onSolo} />
+          <ToggleChip label="S" tip={props.solo ? `Stop soloing ${stem.label}` : `Solo ${stem.label}`} keys={formatKeys(["shift", String(n)])} on={props.solo} color={color} onClick={props.onSolo} />
         </div>
       </div>
       <div
@@ -359,18 +385,6 @@ function StemRow(props: {
         className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted opacity-50 transition hover:bg-elevated hover:text-text group-hover:opacity-100 focus-visible:opacity-100"
       >
         <Download size={15} />
-      </button>
-      <button
-        aria-pressed={props.muted}
-        aria-label={props.muted ? `Unmute ${stem.label}` : `Mute ${stem.label}`}
-        data-tip={props.muted ? `${stem.label} is muted — click to unmute` : `${stem.label} is playing — click to mute`}
-        onClick={(e) => props.onMute(e.shiftKey)}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md hover:bg-elevated"
-      >
-        <span
-          className="block h-3.5 w-3.5 rounded-full border-2 transition-colors duration-150"
-          style={{ borderColor: color, background: props.muted ? "transparent" : color }}
-        />
       </button>
     </motion.div>
   );

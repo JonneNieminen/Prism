@@ -102,6 +102,32 @@ async fn probe_audio(state: State<'_, AppState>, path: String) -> Res<Probe> {
     .await
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Analysis {
+    info: TrackInfo,
+    peaks: Vec<f32>,
+    music: prism_core::musicinfo::MusicInfo,
+    secs: f32,
+}
+
+/// Key & BPM only: decode and estimate, no separation. The decoded audio is kept so
+/// "Separate this song" can start without decoding again.
+#[tauri::command]
+async fn analyze_track(state: State<'_, AppState>, path: String) -> Res<Analysis> {
+    let s = state.inner().clone();
+    blocking(move || {
+        let t = std::time::Instant::now();
+        let p = PathBuf::from(&path);
+        let (audio, info) = prism_core::audio::decode_file(&p, &CancelToken::new())?;
+        let pk = peaks::peaks(&audio, 1200);
+        let music = prism_core::musicinfo::analyze(&audio);
+        s.remember_decoded(p, audio, info.clone());
+        Ok(Analysis { info, peaks: pk, music, secs: t.elapsed().as_secs_f32() })
+    })
+    .await
+}
+
 #[tauri::command]
 fn start_separation(
     app: AppHandle,
@@ -145,6 +171,13 @@ async fn open_project(state: State<'_, AppState>, id: String) -> Res<OpenProject
         Ok(OpenProject { project, peaks, stem_paths })
     })
     .await
+}
+
+/// Estimate key and tempo for a project that doesn't have them yet (made before detection).
+#[tauri::command]
+async fn detect_music(state: State<'_, AppState>, id: String) -> Res<Project> {
+    let s = state.inner().clone();
+    blocking(move || s.library.detect_music(&id)).await
 }
 
 #[tauri::command]
@@ -336,10 +369,12 @@ pub fn run() {
             get_settings,
             set_settings,
             probe_audio,
+            analyze_track,
             start_separation,
             cancel_job,
             list_projects,
             open_project,
+            detect_music,
             rename_project,
             delete_project,
             clear_cache,

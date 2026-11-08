@@ -1,5 +1,6 @@
 // Runs a command from any source: keyboard, native menu, buttons.
 import { usePlayer } from "../features/player/playerStore";
+import { STEP, useMaster } from "./audio/master";
 import { useApp } from "../store/app";
 import { backend, isTauri } from "./ipc";
 import type { CommandId } from "./shortcuts";
@@ -18,6 +19,7 @@ export async function runCommand(id: CommandId | "muteStem" | "soloStem", index 
   const inPlayer = app.view === "player" && !!app.project;
   switch (id) {
     case "open":
+      if (app.view === "analyze") return app.pickAnalysis();
       if (!app.job) return app.pickSource();
       return;
     case "separate": {
@@ -50,6 +52,8 @@ export async function runCommand(id: CommandId | "muteStem" | "soloStem", index 
       return app.project ? app.go("player") : undefined;
     case "goLibrary":
       return app.go("library");
+    case "goAnalyze":
+      return app.go("analyze");
     case "goModels":
       return app.go("models");
     case "goSettings":
@@ -62,6 +66,12 @@ export async function runCommand(id: CommandId | "muteStem" | "soloStem", index 
       const dark = document.documentElement.dataset.theme === "dark";
       return app.updateSettings({ theme: dark ? "light" : "dark" });
     }
+    case "masterUp":
+      return useMaster.getState().nudge(STEP);
+    case "masterDown":
+      return useMaster.getState().nudge(-STEP);
+    case "masterMute":
+      return useMaster.getState().toggleMute();
     case "playPause":
       return inPlayer ? player.engine?.toggle() : undefined;
     case "seekBack":

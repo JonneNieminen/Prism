@@ -25,7 +25,7 @@ body:
     attributes:
       label: Prism version
       description: Prism → About Prism
-      placeholder: 0.1.0
+      placeholder: 1.0.0
     validations:
       required: true
   - type: input

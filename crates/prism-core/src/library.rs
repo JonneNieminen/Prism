@@ -10,6 +10,7 @@ use ts_rs::TS;
 
 use crate::audio::{TrackInfo, write_wav_f32};
 use crate::manifest::{ModelManifest, Quality};
+use crate::musicinfo::MusicInfo;
 use crate::peaks::{PEAK_BUCKETS, peaks};
 use crate::separator::StemOutput;
 use crate::util::{dir_size, now_millis};
@@ -32,6 +33,9 @@ pub struct Project {
     pub device: String,
     pub processing_secs: f32,
     pub stems: Vec<ProjectStem>,
+    /// Estimated tempo and key. Missing for projects made before detection existed.
+    #[serde(default)]
+    pub music: Option<MusicInfo>,
 }
 
 /// Snapshot of the model that produced the stems (survives model removal).
@@ -82,6 +86,7 @@ impl Library {
         quality: Quality,
         device: &str,
         processing_secs: f32,
+        music: Option<MusicInfo>,
     ) -> Result<Project> {
         let id = uuid::Uuid::new_v4().to_string();
         let dir = self.root.join(format!(".tmp-{id}"));
@@ -120,6 +125,7 @@ impl Library {
                 device: device.into(),
                 processing_secs,
                 stems: ps,
+                music,
             };
             fs::write(dir.join("peaks.json"), serde_json::to_vec(&pk)?)?;
             fs::write(dir.join("project.json"), serde_json::to_vec_pretty(&p)?)?;
@@ -176,6 +182,27 @@ impl Library {
             return Err(PrismError::Other("Titles must be 1–200 characters.".into()));
         }
         p.title = t.into();
+        fs::write(self.dir(id)?.join("project.json"), serde_json::to_vec_pretty(&p)?)?;
+        Ok(p)
+    }
+
+    /// Estimate tempo and key from the stems summed back into a mix, and save the result.
+    pub fn detect_music(&self, id: &str) -> Result<Project> {
+        let mut p = self.get(id)?;
+        let mut mix: Option<crate::audio::Audio> = None;
+        for stem in &p.stems {
+            let a = crate::audio::read_wav(&self.stem_path(&p, &stem.id)?)?;
+            match mix.as_mut() {
+                None => mix = Some(a),
+                Some(m) => {
+                    for (mc, ac) in m.channels.iter_mut().zip(&a.channels) {
+                        mc.iter_mut().zip(ac).for_each(|(x, y)| *x += y);
+                    }
+                }
+            }
+        }
+        let info = mix.map(|m| crate::musicinfo::analyze(&m)).unwrap_or_default();
+        p.music = Some(info);
         fs::write(self.dir(id)?.join("project.json"), serde_json::to_vec_pretty(&p)?)?;
         Ok(p)
     }
@@ -249,6 +276,7 @@ mod tests {
             device: "cpu".into(),
             processing_secs: 1.0,
             stems: vec![],
+            music: None,
         };
         fs::write(lib.root.join(&id).join("project.json"), serde_json::to_vec(&p).unwrap()).unwrap();
         id

@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowRight, FileAudio, FileWarning, LayoutGrid, List, MemoryStick, Music2, RotateCcw, Upload, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowRight, Check, FileAudio, FileWarning, LayoutGrid, List, MemoryStick, Music2, RotateCcw, Upload, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AppError, ModelInfo, Quality } from "../../bindings";
 import { Waveform } from "../../components/Waveform";
-import { Button, Card, Chip, IconButton, Kbd, Meter, ProgressBar, Segmented, StemChip, cx } from "../../components/ui";
+import { StemSpinner } from "../../components/StemSpinner";
+import { Button, Card, Chip, IconButton, Keys, Meter, ProgressBar, Segmented, Spinner, StemChip, cx } from "../../components/ui";
 import { stemColor } from "../../lib/colors";
+import { capsOf, keysFor } from "../../lib/shortcuts";
 import { formatDate, formatEta, formatTime, QUALITY_LABEL } from "../../lib/format";
 import { useApp } from "../../store/app";
 import { LicenseDialog } from "../models/LicenseDialog";
@@ -85,7 +87,7 @@ function DropZone() {
         </motion.div>
         <div className="text-[15px] font-medium">{over ? "Release to open" : "Drop a song here"}</div>
         <div className="mt-1 text-[13px] text-muted">
-          or <span className="font-medium text-accent">choose a file</span> <span className="ml-1 opacity-70">⌘O</span>
+          or <span className="font-medium text-accent">choose a file</span> <span className="ml-1 opacity-70">{keysFor("open")}</span>
         </div>
         <div className="mt-5 flex gap-1.5">
           {["MP3", "WAV", "FLAC", "M4A", "OGG"].map((e) => (
@@ -357,7 +359,22 @@ function SourceCard() {
   );
 }
 
-const STAGE_LABEL = { decoding: "Reading audio", loading: "Loading model", separating: "Separating", saving: "Saving stems" } as const;
+const STEPS = [
+  { stage: "decoding", label: "Read the song" },
+  { stage: "loading", label: "Prepare the model" },
+  { stage: "separating", label: "Separate the stems" },
+  { stage: "saving", label: "Save to your library" },
+] as const;
+
+/** Current time, re-rendered once a second. */
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return now;
+}
 
 function Separating() {
   // Keep the last job so the exit animation can render after the job clears.
@@ -369,47 +386,104 @@ function Separating() {
   const models = useApp((s) => s.models);
   const [cancelling, setCancelling] = useState(false);
   const stems = models?.listing.models.find((m) => m.manifest.id === job.modelId)?.manifest.stems ?? [{ id: "vocals" }, { id: "drums" }, { id: "bass" }, { id: "other" }];
-  const overall = job.stage === "separating" ? 0.04 + job.fraction * 0.92 : job.stage === "saving" ? 0.98 : job.stage === "loading" ? 0.03 : 0.01;
+  const current = STEPS.findIndex((x) => x.stage === job.stage);
+  const now = useNow();
+  const stage = useRef({ name: job.stage, since: Date.now() });
+  if (stage.current.name !== job.stage) stage.current = { name: job.stage, since: Date.now() };
+  const stepElapsed = Math.max(0, (now - stage.current.since) / 1000);
+  const totalElapsed = Math.max(0, (now - job.startedAt) / 1000);
+  const preparing = job.stage === "decoding" || job.stage === "loading";
+  const stepped = /model \d+ of \d+/.test(job.detail ?? "");
+  const indeterminate = job.stage === "decoding" || (job.stage === "loading" && !stepped);
+  const barValue = job.stage === "saving" ? 1 : job.stage === "separating" ? job.fraction : job.stage === "loading" && stepped ? job.fraction : 0;
 
   return (
     <div className="text-center">
-      <Refraction stems={stems} progress={job.stage === "separating" ? job.fraction : job.stage === "saving" ? 1 : 0} />
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={preparing ? "spin" : "flow"} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={{ duration: 0.2 }}>
+          {preparing ? (
+            <div className="flex h-[150px] items-center justify-center">
+              <StemSpinner stems={stems} size={104} />
+            </div>
+          ) : (
+            <Refraction stems={stems} progress={job.stage === "separating" ? job.fraction : 1} />
+          )}
+        </motion.div>
+      </AnimatePresence>
       <h2 className="mt-6 truncate text-[20px] font-semibold">{job.title}</h2>
       <p className="mt-1 text-[13px] text-muted">
         {job.modelName}
         {job.device && ` · ${job.device}`}
       </p>
-      <div className="mx-auto mt-7 max-w-[460px]">
-        <ProgressBar value={overall} label="Separation progress" />
-        <div className="mt-2.5 flex items-center justify-between text-[12px] text-muted">
-          <span aria-live="polite">
-            {STAGE_LABEL[job.stage]}
-            {job.stage === "separating" && <span className="tabular"> · {Math.round(job.fraction * 100)}%</span>}
-          </span>
-          <span className="tabular">{job.stage === "separating" ? formatEta(job.eta) : ""}</span>
+
+      <div className="mx-auto mt-7 max-w-[460px] text-left">
+        <ol className="card divide-y divide-[var(--border)] overflow-hidden" aria-label="Separation steps">
+          {STEPS.map((st, i) => {
+            const state = i < current ? "done" : i === current ? "active" : "todo";
+            return (
+              <li key={st.stage} aria-current={state === "active" ? "step" : undefined} className={cx("flex items-start gap-3 px-3.5 py-2.5 transition-opacity", state === "todo" && "opacity-45")}>
+                <span className="mt-px flex h-5 w-5 shrink-0 items-center justify-center">
+                  {state === "done" ? (
+                    <motion.span initial={{ scale: 0.4 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 500, damping: 20 }} className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-accent text-white">
+                      <Check size={11} strokeWidth={3} />
+                    </motion.span>
+                  ) : state === "active" ? (
+                    <Spinner className="h-[18px] w-[18px] border-2 text-accent" />
+                  ) : (
+                    <span className="h-[18px] w-[18px] rounded-full border-[1.5px] border-border-strong" />
+                  )}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className={cx("text-[13px]", state === "active" ? "font-medium" : "text-muted")}>{st.label}</div>
+                  <AnimatePresence initial={false}>
+                    {state === "active" && job.detail && (
+                      <motion.div key={job.detail} initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="mt-0.5 truncate text-[12px] text-muted" aria-live="polite">
+                        {job.detail}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+                <span className="tabular mt-px text-[12px] text-muted">
+                  {state === "active" && (job.stage === "separating" ? `${Math.round(job.fraction * 100)}%` : formatTime(stepElapsed))}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="mt-4">
+          <ProgressBar value={barValue} indeterminate={indeterminate} label={STEPS[Math.max(0, current)].label} />
+          <div className="mt-2 flex items-center justify-between text-[12px] text-muted">
+            <span className="tabular">Elapsed {formatTime(totalElapsed)}</span>
+            <span className="tabular">{job.stage === "separating" ? formatEta(job.eta) : ""}</span>
+          </div>
         </div>
+
         <AnimatePresence>
           {job.note && (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-3 text-[12px] text-muted">
+            <motion.p initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-3 overflow-hidden rounded-lg bg-accent-soft px-3 py-2 text-[12px] leading-relaxed text-text">
               {job.note}
             </motion.p>
           )}
         </AnimatePresence>
-        <Button
-          className="mt-7"
-          onClick={() => {
-            setCancelling(true);
-            void cancel();
-          }}
-          disabled={cancelling}
-          tip="Stop separating. Nothing is saved."
-          shortcut="cancel"
-        >
-          {cancelling ? "Cancelling…" : "Cancel"}
-        </Button>
-        <p className="mt-6 text-[12px] text-faint">
-          You can keep using Prism while this runs. Press <Kbd>⌘</Kbd> <Kbd>.</Kbd> to cancel.
-        </p>
+
+        <div className="text-center">
+          <Button
+            className="mt-6"
+            onClick={() => {
+              setCancelling(true);
+              void cancel();
+            }}
+            disabled={cancelling}
+            tip="Stop separating. Nothing is saved."
+            shortcut="cancel"
+          >
+            {cancelling ? "Cancelling…" : "Cancel"}
+          </Button>
+          <p className="mt-5 text-[12px] text-faint">
+            You can keep using Prism while this runs. Press <Keys keys={capsOf(["mod", "."])} /> to cancel.
+          </p>
+        </div>
       </div>
     </div>
   );

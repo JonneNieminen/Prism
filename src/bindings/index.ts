@@ -13,6 +13,8 @@ export type * from "./ModelInfo";
 export type * from "./ModelListing";
 export type * from "./ModelManifest";
 export type * from "./ModelProblem";
+export type * from "./MusicInfo";
+export type * from "./MusicKey";
 export type * from "./Progress";
 export type * from "./Project";
 export type * from "./ProjectModel";

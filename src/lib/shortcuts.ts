@@ -1,6 +1,10 @@
 // Every keyboard shortcut, in one place. Used by the key handler, tooltips and
-// the Shortcuts screen. The native macOS menu (src-tauri/src/menu.rs) mirrors
-// the ⌘ ones — keep both in sync (and the README table).
+// the Shortcuts screen. Keys are written once with platform-neutral modifier tokens
+// ("mod" = ⌘ on macOS, Ctrl on Windows and Linux) and rendered per OS. The native menu
+// (src-tauri/src/menu.rs) mirrors the "mod" ones with CmdOrCtrl — keep both in sync
+// (and the README table).
+
+import { isMac, platform, type Platform } from "./platform";
 
 export type CommandId =
   | "open"
@@ -13,10 +17,14 @@ export type CommandId =
   | "goPlayer"
   | "goLibrary"
   | "goModels"
+  | "goAnalyze"
   | "goSettings"
   | "goHelp"
   | "goShortcuts"
   | "toggleTheme"
+  | "masterUp"
+  | "masterDown"
+  | "masterMute"
   | "playPause"
   | "seekBack"
   | "seekForward"
@@ -32,67 +40,111 @@ export type CommandId =
   | "quit"
   | "closeDialog";
 
-export type Group = "General" | "Navigation" | "Player" | "Stems" | "Window";
+export type Group = "General" | "Navigation" | "Master volume" | "Player" | "Stems" | "Window";
 
 export type Shortcut = {
   id: CommandId | "muteStem" | "soloStem";
   label: string;
-  keys: string[]; // keycaps as displayed
+  /** Platform-neutral tokens: "mod", "shift", "alt", "ctrl", or a literal key. */
+  keys: string[];
   group: Group;
-  /** Handled by macOS itself / the native menu only (not by the page). */
+  /** Handled by the OS itself / the native menu only (not by the page). */
   systemOnly?: boolean;
+  /** Only shown (and active) on these platforms. Default: all. */
+  platforms?: Platform[];
 };
 
-export const SHORTCUTS: Shortcut[] = [
-  { id: "open", label: "Open a song…", keys: ["⌘", "O"], group: "General" },
-  { id: "separate", label: "Start separation", keys: ["⌘", "↩"], group: "General" },
-  { id: "cancel", label: "Cancel separation", keys: ["⌘", "."], group: "General" },
-  { id: "exportMix", label: "Export current mix…", keys: ["⌘", "E"], group: "General" },
-  { id: "exportStems", label: "Export all stems (.zip)…", keys: ["⇧", "⌘", "E"], group: "General" },
-  { id: "toggleTheme", label: "Switch light / dark appearance", keys: ["⇧", "⌘", "L"], group: "General" },
-  { id: "goShortcuts", label: "Show keyboard shortcuts", keys: ["⌘", "/"], group: "General" },
-  { id: "goHelp", label: "Open Prism Help", keys: ["⇧", "⌘", "/"], group: "General" },
+const ALL_SHORTCUTS: Shortcut[] = [
+  { id: "open", label: "Open a song…", keys: ["mod", "O"], group: "General" },
+  { id: "separate", label: "Start separation", keys: ["mod", "↩"], group: "General" },
+  { id: "cancel", label: "Cancel separation", keys: ["mod", "."], group: "General" },
+  { id: "exportMix", label: "Export current mix…", keys: ["mod", "E"], group: "General" },
+  { id: "exportStems", label: "Export all stems (.zip)…", keys: ["shift", "mod", "E"], group: "General" },
+  { id: "toggleTheme", label: "Switch light / dark appearance", keys: ["shift", "mod", "L"], group: "General" },
+  { id: "goShortcuts", label: "Show keyboard shortcuts", keys: ["mod", "/"], group: "General" },
+  { id: "goHelp", label: "Open Prism Help", keys: ["shift", "mod", "/"], group: "General" },
   { id: "closeDialog", label: "Close dialog", keys: ["esc"], group: "General" },
 
-  { id: "goSeparate", label: "Separate", keys: ["⌘", "1"], group: "Navigation" },
-  { id: "goPlayer", label: "Player (open song)", keys: ["⌘", "2"], group: "Navigation" },
-  { id: "goLibrary", label: "Library", keys: ["⌘", "3"], group: "Navigation" },
-  { id: "goModels", label: "Models", keys: ["⌘", "4"], group: "Navigation" },
-  { id: "goSettings", label: "Settings", keys: ["⌘", ","], group: "Navigation" },
+  { id: "goSeparate", label: "Separate", keys: ["mod", "1"], group: "Navigation" },
+  { id: "goPlayer", label: "Player (open song)", keys: ["mod", "2"], group: "Navigation" },
+  { id: "goLibrary", label: "Library", keys: ["mod", "3"], group: "Navigation" },
+  { id: "goModels", label: "Models", keys: ["mod", "4"], group: "Navigation" },
+  { id: "goAnalyze", label: "Key & BPM", keys: ["mod", "5"], group: "Navigation" },
+  { id: "goSettings", label: "Settings", keys: ["mod", ","], group: "Navigation" },
+
+  { id: "masterUp", label: "Master volume up", keys: ["mod", "↑"], group: "Master volume" },
+  { id: "masterDown", label: "Master volume down", keys: ["mod", "↓"], group: "Master volume" },
+  { id: "masterMute", label: "Mute / unmute master", keys: ["M"], group: "Master volume" },
 
   { id: "playPause", label: "Play / pause", keys: ["space"], group: "Player" },
   { id: "seekBack", label: "Back 5 seconds", keys: ["←"], group: "Player" },
   { id: "seekForward", label: "Forward 5 seconds", keys: ["→"], group: "Player" },
-  { id: "seekBackLong", label: "Back 15 seconds", keys: ["⇧", "←"], group: "Player" },
-  { id: "seekForwardLong", label: "Forward 15 seconds", keys: ["⇧", "→"], group: "Player" },
+  { id: "seekBackLong", label: "Back 15 seconds", keys: ["shift", "←"], group: "Player" },
+  { id: "seekForwardLong", label: "Forward 15 seconds", keys: ["shift", "→"], group: "Player" },
   { id: "toStart", label: "Go to start", keys: ["0"], group: "Player" },
 
   { id: "muteStem", label: "Mute / unmute stem 1–9", keys: ["1", "–", "9"], group: "Stems" },
-  { id: "soloStem", label: "Solo stem 1–9", keys: ["⇧", "1", "–", "9"], group: "Stems" },
+  { id: "soloStem", label: "Solo stem 1–9", keys: ["shift", "1", "–", "9"], group: "Stems" },
   { id: "karaoke", label: "Karaoke (remove vocals)", keys: ["K"], group: "Stems" },
   { id: "acapella", label: "A cappella (vocals only)", keys: ["A"], group: "Stems" },
   { id: "resetMix", label: "Reset mix", keys: ["R"], group: "Stems" },
 
-  { id: "minimize", label: "Minimize window", keys: ["⌘", "M"], group: "Window", systemOnly: true },
-  { id: "fullscreen", label: "Enter / exit full screen", keys: ["⌃", "⌘", "F"], group: "Window", systemOnly: true },
-  { id: "hide", label: "Hide Prism", keys: ["⌘", "H"], group: "Window", systemOnly: true },
-  { id: "quit", label: "Quit Prism", keys: ["⌘", "Q"], group: "Window", systemOnly: true },
+  { id: "minimize", label: "Minimize window", keys: ["mod", "M"], group: "Window", systemOnly: true, platforms: ["mac"] },
+  { id: "fullscreen", label: "Enter / exit full screen", keys: ["ctrl", "mod", "F"], group: "Window", systemOnly: true, platforms: ["mac"] },
+  { id: "fullscreen", label: "Enter / exit full screen", keys: ["F11"], group: "Window", platforms: ["windows", "linux"] },
+  { id: "hide", label: "Hide Prism", keys: ["mod", "H"], group: "Window", systemOnly: true, platforms: ["mac"] },
+  { id: "quit", label: "Quit Prism", keys: ["mod", "Q"], group: "Window", systemOnly: true, platforms: ["mac", "linux"] },
+  { id: "quit", label: "Quit Prism", keys: ["alt", "F4"], group: "Window", systemOnly: true, platforms: ["windows"] },
 ];
 
-/** Compact keycap string for tooltips, e.g. "⇧⌘E". */
+/** The shortcuts that exist on this OS. */
+export const SHORTCUTS: Shortcut[] = ALL_SHORTCUTS.filter((s) => !s.platforms || s.platforms.includes(platform));
+
+const MAC_SYMBOL: Record<string, string> = { mod: "⌘", shift: "⇧", alt: "⌥", ctrl: "⌃" };
+const OTHER_NAME: Record<string, string> = { mod: "Ctrl", ctrl: "Ctrl", shift: "Shift", alt: "Alt" };
+// Display order of modifiers: macOS writes ⌃⌥⇧⌘, Windows and Linux write Ctrl+Alt+Shift.
+const MAC_ORDER = ["ctrl", "alt", "shift", "mod"];
+const OTHER_ORDER = ["mod", "ctrl", "alt", "shift"];
+
+/** Keycaps for display on this OS, e.g. ["⇧", "⌘", "E"] or ["Ctrl", "Shift", "E"]. */
+export function capsOf(keys: string[]): string[] {
+  const order = isMac ? MAC_ORDER : OTHER_ORDER;
+  const mods = keys.filter((k) => order.includes(k)).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const rest = keys.filter((k) => !order.includes(k));
+  const label = (k: string) => (isMac ? MAC_SYMBOL[k] : OTHER_NAME[k]);
+  const literal = (k: string) => (!isMac && k === "↩" ? "Enter" : k);
+  return [...mods.map(label), ...rest.map(literal)];
+}
+
+/** One-line form for tooltips and prose: "⇧⌘E" on macOS, "Ctrl+Shift+E" elsewhere. */
+export function formatKeys(keys: string[]): string {
+  const caps = capsOf(keys).map((k) => (k.length > 1 && /^[a-z]/.test(k) ? k[0].toUpperCase() + k.slice(1) : k));
+  if (!isMac) return caps.join("+");
+  return caps.join(caps.some((k) => k.length > 1 && /^[A-Za-z]/.test(k)) ? " " : "");
+}
+
+/** Compact keycap string for tooltips. */
 export function keysFor(id: string): string | undefined {
   const s = SHORTCUTS.find((x) => x.id === id);
-  if (!s) return undefined;
-  const word = (k: string) => k.length > 1;
-  const caps = s.keys.map((k) => (word(k) ? k[0].toUpperCase() + k.slice(1) : k));
-  return caps.join(s.keys.some(word) ? " " : "");
+  return s ? formatKeys(s.keys) : undefined;
+}
+
+/** True when the platform's command modifier is held: ⌘ on macOS, Ctrl elsewhere. */
+export function hasMod(e: KeyboardEvent): boolean {
+  return isMac ? e.metaKey : e.ctrlKey;
 }
 
 /** Map a keyboard event to a command (page-level handling). */
 export function matchEvent(e: KeyboardEvent): { id: CommandId } | { id: "muteStem" | "soloStem"; index: number } | null {
-  const cmd = e.metaKey || e.ctrlKey;
+  const cmd = hasMod(e);
   const k = e.key.toLowerCase();
+  if (!isMac && e.key === "F11" && !cmd && !e.altKey && !e.shiftKey) return { id: "fullscreen" };
+  if (platform === "linux" && cmd && !e.altKey && !e.shiftKey && k === "q") return { id: "quit" };
+  // Ctrl on macOS and ⌘ on Windows/Linux are other modifiers: never treat them as commands.
+  if (isMac ? e.ctrlKey : e.metaKey) return null;
   if (cmd && !e.altKey) {
+    if (e.key === "ArrowUp" && !e.shiftKey) return { id: "masterUp" };
+    if (e.key === "ArrowDown" && !e.shiftKey) return { id: "masterDown" };
     if (k === "o" && !e.shiftKey) return { id: "open" };
     if (k === "enter") return { id: "separate" };
     if (k === ".") return { id: "cancel" };
@@ -100,12 +152,13 @@ export function matchEvent(e: KeyboardEvent): { id: CommandId } | { id: "muteSte
     if (k === "l" && e.shiftKey) return { id: "toggleTheme" };
     if (e.code === "Slash") return { id: e.shiftKey ? "goHelp" : "goShortcuts" };
     if (k === ",") return { id: "goSettings" };
-    const nav = ["goSeparate", "goPlayer", "goLibrary", "goModels"] as const;
-    const d = /^Digit([1-4])$/.exec(e.code);
+    const nav = ["goSeparate", "goPlayer", "goLibrary", "goModels", "goAnalyze"] as const;
+    const d = /^Digit([1-5])$/.exec(e.code);
     if (d && !e.shiftKey) return { id: nav[Number(d[1]) - 1] };
     return null;
   }
   if (e.altKey || e.metaKey || e.ctrlKey) return null;
+  if (k === "m" && !e.shiftKey) return { id: "masterMute" };
   if (e.code === "Space") return { id: "playPause" };
   if (e.key === "ArrowLeft") return { id: e.shiftKey ? "seekBackLong" : "seekBack" };
   if (e.key === "ArrowRight") return { id: e.shiftKey ? "seekForwardLong" : "seekForward" };

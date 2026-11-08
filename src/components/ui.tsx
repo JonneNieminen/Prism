@@ -176,22 +176,32 @@ export function Card({ className, children, ...rest }: React.HTMLAttributes<HTML
   );
 }
 
-export function ProgressBar({ value, className, label }: { value: number; className?: string; label?: string }) {
+export function ProgressBar({ value, className, label, indeterminate = false }: { value: number; className?: string; label?: string; indeterminate?: boolean }) {
   return (
     <div
       role="progressbar"
       aria-label={label}
       aria-valuemin={0}
       aria-valuemax={100}
-      aria-valuenow={Math.round(value * 100)}
+      aria-valuenow={indeterminate ? undefined : Math.round(value * 100)}
       className={cx("h-1.5 overflow-hidden rounded-full bg-pressed", className)}
     >
+      {indeterminate ? (
+        <motion.div
+          key="indeterminate"
+          className="h-full w-1/3 rounded-full bg-accent"
+          animate={{ x: ["-100%", "300%"] }}
+          transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+        />
+      ) : (
       <motion.div
+        key="determinate"
         className="h-full rounded-full bg-accent"
         initial={false}
         animate={{ width: `${Math.max(1.5, value * 100)}%` }}
         transition={{ type: "tween", ease: "easeOut", duration: 0.3 }}
       />
+      )}
     </div>
   );
 }

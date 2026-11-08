@@ -48,6 +48,9 @@ separated by a local AI model. Remove instruments, solo them, mix them, export t
 - **Remove or isolate instruments** live: mute, solo and set the volume of each stem; one-click *Karaoke* and *A cappella*.
 - **Synced multi-stem player** with a shared playhead, waveforms and full keyboard control.
 - **Export** a single stem, all stems as a `.zip`, or exactly the mix you hear — WAV (24-bit), FLAC or MP3 (128–320 kbps).
+- **Key and tempo detection**: every song gets an estimated BPM and musical key (with the Camelot code), shown in the player header and the library. Songs separated earlier get it when you open them.
+- **Master volume**: one slider and a sound on/off switch in the sidebar, available in every view and remembered between launches.
+- **Key & BPM**: a separate tool that finds a song's tempo and key (with Camelot code) in seconds, no separation needed.
 - **Library** of past separations that reopen instantly, remembering which model made them.
 - **Pluggable models**: import your own ONNX models, or download more from a checksum-verified catalog (6-stem Demucs, fine-tuned Demucs, MDX-Net vocal and instrumental models).
 - **Fast on Apple Silicon** via Core ML — about 11× realtime on an M1 Pro — with automatic CPU fallback.
@@ -122,34 +125,38 @@ Files are named like `Song Title - vocals.wav`. Choose a default save folder in 
 
 ## Keyboard shortcuts
 
-Hover any button in Prism to see its shortcut, or press **⌘/** for the in-app reference. On Windows and Linux, **⌘** is **Ctrl**.
+Prism shows the shortcuts for your system: hover any button to see its shortcut, or open the in-app reference (**⌘/** on macOS, **Ctrl+/** on Windows and Linux). Below, **Mod** is **⌘** on macOS and **Ctrl** on Windows and Linux.
 
-| General | | Navigation | |
-|---|---|---|---|
-| Open a song… | **⌘O** | Separate | **⌘1** |
-| Start separation | **⌘↩** | Player (open song) | **⌘2** |
-| Cancel separation | **⌘.** | Library | **⌘3** |
-| Export current mix… | **⌘E** | Models | **⌘4** |
-| Export all stems (.zip)… | **⇧⌘E** | Settings | **⌘,** |
-| Switch light / dark | **⇧⌘L** | | |
-| Keyboard shortcuts | **⌘/** | | |
-| Prism Help | **⇧⌘/** | | |
-| Close dialog | **Esc** | | |
+| Action | macOS | Windows / Linux |
+|---|---|---|
+| Open a song… | **⌘O** | **Ctrl+O** |
+| Start separation | **⌘↩** | **Ctrl+Enter** |
+| Cancel separation | **⌘.** | **Ctrl+.** |
+| Export current mix… | **⌘E** | **Ctrl+E** |
+| Export all stems (.zip)… | **⇧⌘E** | **Ctrl+Shift+E** |
+| Switch light / dark | **⇧⌘L** | **Ctrl+Shift+L** |
+| Keyboard shortcuts | **⌘/** | **Ctrl+/** |
+| Prism Help | **⇧⌘/** | **Ctrl+Shift+/** |
+| Close dialog | **Esc** | **Esc** |
+| Separate · Player · Library · Models · Key & BPM | **⌘1** · **⌘2** · **⌘3** · **⌘4** · **⌘5** | **Ctrl+1** · **Ctrl+2** · **Ctrl+3** · **Ctrl+4** · **Ctrl+5** |
+| Settings | **⌘,** | **Ctrl+,** |
+| Master volume up / down | **⌘↑** / **⌘↓** | **Ctrl+↑** / **Ctrl+↓** |
+| Mute / unmute master | **M** | **M** |
 
 | Player | | Stems | |
 |---|---|---|---|
 | Play / pause | **Space** | Mute / unmute stem 1–9 | **1**–**9** |
-| Back / forward 5 s | **←** / **→** | Solo stem 1–9 | **⇧1**–**⇧9** |
-| Back / forward 15 s | **⇧←** / **⇧→** | Karaoke (remove vocals) | **K** |
+| Back / forward 5 s | **←** / **→** | Solo stem 1–9 | **Shift+1**–**Shift+9** (**⇧1**–**⇧9** on macOS) |
+| Back / forward 15 s | **Shift+←** / **Shift+→** | Karaoke (remove vocals) | **K** |
 | Go to start | **0** | A cappella (vocals only) | **A** |
 | | | Reset mix | **R** |
 
-| Window | |
-|---|---|
-| Minimize | **⌘M** |
-| Full screen | **⌃⌘F** |
-| Hide Prism | **⌘H** |
-| Quit | **⌘Q** |
+| Window | macOS | Windows | Linux |
+|---|---|---|---|
+| Minimize | **⌘M** | system | system |
+| Full screen | **⌃⌘F** | **F11** | **F11** |
+| Hide Prism | **⌘H** | | |
+| Quit | **⌘Q** | **Alt+F4** | **Ctrl+Q** |
 
 ## Build from source
 

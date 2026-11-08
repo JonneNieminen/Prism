@@ -1,11 +1,12 @@
-import { AudioLines, Boxes, Download, Flag, Gauge, Library, LifeBuoy, ShieldCheck, Wrench } from "lucide-react";
+import { AudioLines, Boxes, Download, Flag, Gauge, Library, LifeBuoy, Metronome, ShieldCheck, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
-import { Button, Card, Kbd, PageHeader, cx } from "../../components/ui";
+import { Button, Card, Keys, PageHeader, cx } from "../../components/ui";
+import { capsOf } from "../../lib/shortcuts";
 import { useApp } from "../../store/app";
 
 type Section = { id: string; icon: typeof Flag; title: string; body: ReactNode };
 
-const K = ({ k }: { k: string }) => <Kbd>{k}</Kbd>;
+const K = ({ k }: { k: string[] }) => <Keys keys={capsOf(k)} />;
 
 const SECTIONS: Section[] = [
   {
@@ -15,9 +16,9 @@ const SECTIONS: Section[] = [
     body: (
       <ol className="list-decimal space-y-1.5 pl-5">
         <li>
-          Drop a song onto the <b>Separate</b> screen, or press <K k="⌘" /> <K k="O" /> to choose one. MP3, WAV, FLAC, M4A and OGG work.
+          Drop a song onto the <b>Separate</b> screen, or press <K k={["mod", "O"]} /> to choose one. MP3, WAV, FLAC, M4A and OGG work.
         </li>
-        <li>Check the preview, pick a model and a quality, then press <b>Separate</b> (<K k="⌘" /> <K k="↩" />).</li>
+        <li>Check the preview, pick a model and a quality, then press <b>Separate</b> (<K k={["mod", "↩"]} />).</li>
         <li>When it's done the player opens. Mute, solo and mix the stems, then export what you need.</li>
       </ol>
     ),
@@ -36,7 +37,7 @@ const SECTIONS: Section[] = [
           cached — a 4-minute song takes roughly 25 seconds.
         </li>
         <li>
-          You can keep browsing while it runs. Cancel any time with <K k="⌘" /> <K k="." />.
+          You can keep browsing while it runs. Cancel any time with <K k={["mod", "."]} />.
         </li>
       </ul>
     ),
@@ -48,16 +49,16 @@ const SECTIONS: Section[] = [
     body: (
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
-          Every stem plays in sync. Click a stem's name or its colored dot to mute it — <K k="⇧" />-click to mute or unmute a range of stems.{" "}
+          Every stem plays in sync. Click a stem's name or its colored dot to mute it — <K k={["shift"]} />-click to mute or unmute a range of stems.{" "}
           <b>S</b> solos a stem (solo wins over mute, like a mixing desk). Drag a stem's slider to change its
-          volume; double-click the slider to reset it.
+          volume; double-click the slider to reset it. The <b>Master volume</b> slider and sound switch at the bottom of the sidebar control everything Prism plays, in every view.
         </li>
         <li>
           <b>Karaoke</b> removes the vocals, <b>A cappella</b> leaves only the vocals, <b>Reset</b> turns everything back on.
         </li>
         <li>
-          Click a waveform to jump there, or drag to scrub. <K k="Space" /> plays and pauses, <K k="←" /> <K k="→" /> skip 5 seconds and the number keys mute
-          stems 1–9 (hold <K k="⇧" /> to solo).
+          Click a waveform to jump there, or drag to scrub. <K k={["space"]} /> plays and pauses, <K k={["←"]} /> <K k={["→"]} /> skip 5 seconds and the number keys mute
+          stems 1–9 (hold <K k={["shift"]} /> to solo).
         </li>
       </ul>
     ),
@@ -69,13 +70,32 @@ const SECTIONS: Section[] = [
     body: (
       <ul className="list-disc space-y-1.5 pl-5">
         <li>
-          <b>Current mix</b> saves exactly what you hear as one file (<K k="⌘" /> <K k="E" />). <b>Download all stems</b> saves a .zip with one file per stem (
-          <K k="⇧" /> <K k="⌘" /> <K k="E" />). The download button on a stem saves just that stem.
+          <b>Current mix</b> saves exactly what you hear as one file (<K k={["mod", "E"]} />). <b>Download all stems</b> saves a .zip with one file per stem (
+          <K k={["shift"]} /> <K k={["mod", "E"]} />). The download button on a stem saves just that stem.
         </li>
         <li>
           WAV is 24-bit and lossless, FLAC is lossless and smaller, MP3 is smallest (128–320 kbps). Files are named like <i>Song Title - vocals.wav</i>.
         </li>
         <li>Set a default save folder in Settings to skip navigating every time.</li>
+      </ul>
+    ),
+  },
+  {
+    id: "analyze",
+    icon: Metronome,
+    title: "Key & BPM",
+    body: (
+      <ul className="list-disc space-y-1.5 pl-5">
+        <li>
+          Open <b>Key &amp; BPM</b> in the sidebar to find a song's tempo and musical key without separating it. Drop a song there or choose a file.
+        </li>
+        <li>
+          Tempo can land on half or double time, so the alternatives are shown. The key comes with its Camelot code (for harmonic mixing) and its
+          relative key, which shares the same notes and is the most common mix-up.
+        </li>
+        <li>
+          <b>Separate this song</b> hands it straight to Separate — it's already decoded, so it starts right away.
+        </li>
       </ul>
     ),
   },

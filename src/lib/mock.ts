@@ -135,6 +135,7 @@ function demoProject(title: string): Project {
     device: "Apple Silicon (Core ML)",
     processingSecs: 6.2,
     stems: demucs.stems.map((s) => ({ id: s.id, label: s.label, color: null, file: `stems/${s.id}.wav` })),
+    music: { bpm: 112, bpmConfidence: 0.74, key: { tonic: 9, minor: true, name: "A minor", camelot: "8A", confidence: 0.8 } },
   };
 }
 
@@ -144,7 +145,7 @@ export function mockBackend(): Backend {
   if (projects.length === 0) projects.push({ ...demoProject("Midnight Drive"), createdAt: Date.now() - 86_400_000 * 2 });
   return {
     appInfo: async () => ({
-      version: "0.1.0-dev",
+      version: "1.0.0-dev",
       dataDir: "~/Library/Application Support/com.jonnenieminen.prism",
       libraryBytes: 412_000_000,
       accelCacheBytes: 635_000_000,
@@ -153,6 +154,16 @@ export function mockBackend(): Backend {
     }),
     getSettings: async () => settings,
     setSettings: async (s) => (settings = s),
+    analyzeTrack: async (path) => {
+      await sleep(900);
+      const name = path.split("/").pop() ?? path;
+      return {
+        info: { title: name.replace(/\.[^.]+$/, ""), artist: "Demo Artist", durationSecs: 214.3, sampleRate: 44100, channels: 2, fileName: name },
+        peaks: demoPeaks(2).map((v, i) => Math.min(1, v + demoPeaks(0)[i] * 0.5)),
+        music: { bpm: 122, bpmConfidence: 0.82, key: { tonic: 9, minor: true, name: "A minor", camelot: "8A", confidence: 0.64 } },
+        secs: 1.4,
+      };
+    },
     probeAudio: async (path) => {
       await sleep(500);
       const name = path.split("/").pop() ?? path;
@@ -168,13 +179,20 @@ export function mockBackend(): Backend {
       const title = (path.split("/").pop() ?? "Song").replace(/\.[^.]+$/, "");
       void (async () => {
         const emit = (e: JobEvent) => listeners.sep.forEach((l) => l(e));
-        emit({ kind: "progress", jobId, stage: "decoding", fraction: 0, etaSecs: null, device: null, note: null });
-        await sleep(400);
-        emit({ kind: "progress", jobId, stage: "loading", fraction: 0, etaSecs: null, device: null, note: null });
-        await sleep(600);
+        const step = (stage: "decoding" | "loading", fraction: number, detail: string, note: string | null = null) =>
+          emit({ kind: "progress", jobId, stage, fraction, etaSecs: null, device: null, detail, note });
+        step("decoding", 0, `Reading “${path.split("/").pop()}”`);
+        await sleep(500);
+        step("decoding", 1, "Converting to 44.1 kHz stereo");
+        await sleep(500);
+        const note = "First run with this model: Prism is optimizing it for your Mac. This is a one-time wait — next time it loads in seconds.";
+        for (const [i, stem] of ["Drums", "Bass", "Other", "Vocals"].entries()) {
+          step("loading", i / 4, `Optimizing model ${i + 1} of 4 · ${stem}`, note);
+          await sleep(900);
+        }
         for (let i = 1; i <= 40; i++) {
           if (cancelled.has(jobId)) return emit({ kind: "error", jobId, error: { kind: "cancelled", message: "Cancelled" } });
-          emit({ kind: "progress", jobId, stage: "separating", fraction: i / 40, etaSecs: (40 - i) * 0.15, device: "Apple Silicon (Core ML)", note: null });
+          emit({ kind: "progress", jobId, stage: "separating", fraction: i / 40, etaSecs: (40 - i) * 0.15, device: "Apple Silicon (Core ML)", detail: "Splitting the song into 4 stems", note: null });
           await sleep(150);
         }
         const p = demoProject(title);
@@ -195,6 +213,7 @@ export function mockBackend(): Backend {
         stemUrls: urls.get(id)!,
       };
     },
+    detectMusic: async (id) => projects.find((p) => p.id === id)!,
     renameProject: async (id, title) => {
       const p = projects.find((x) => x.id === id)!;
       p.title = title;

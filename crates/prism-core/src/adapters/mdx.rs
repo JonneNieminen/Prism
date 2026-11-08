@@ -16,7 +16,7 @@ use super::common::{input_names, params, run_f32};
 use crate::audio::Audio;
 use crate::dsp::{Spec, Stft};
 use crate::manifest::{ModelManifest, StemSource};
-use crate::runtime::{RuntimeOptions, session};
+use crate::runtime::{LoadStep, RuntimeOptions, session};
 use crate::separator::{SeparateOptions, Separator, StemOutput};
 use crate::util::CancelToken;
 use crate::{PrismError, Result};
@@ -77,12 +77,13 @@ pub struct MdxNet {
 }
 
 impl MdxNet {
-    pub fn new(m: &ModelManifest, dir: &Path, rt: &RuntimeOptions) -> Result<Self> {
+    pub fn new(m: &ModelManifest, dir: &Path, rt: &RuntimeOptions, on_step: &mut dyn FnMut(LoadStep)) -> Result<Self> {
         let p: Params = params(m)?;
         let wf = m.weight_files();
         if wf.len() != 1 {
             return Err(PrismError::InvalidModel("MDX-Net models have exactly one weights file.".into()));
         }
+        on_step(LoadStep { index: 0, total: 1, stem: None });
         let (sess, device) = session(&dir.join(&wf[0].file), rt)?;
         let input = input_names(&sess).into_iter().next().unwrap_or_else(|| "input".into());
         Ok(MdxNet { manifest: m.clone(), sess, input, stft: Stft::new(p.n_fft, p.hop, false), p, device })

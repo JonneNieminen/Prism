@@ -1,9 +1,11 @@
-import { AudioLines, Boxes, CircleHelp, Keyboard, Library, Monitor, Moon, Settings2, Sun } from "lucide-react";
+import { AudioLines, Boxes, Metronome, CircleHelp, Keyboard, Library, Monitor, Moon, Settings2, Sun } from "lucide-react";
 import type { Theme } from "../bindings";
 import { useApp, type View } from "../store/app";
 import { SongTree, type IconType } from "./icons";
 import { Wordmark } from "./Logo";
+import { MasterVolume } from "./MasterVolume";
 import { Segmented, cx } from "./ui";
+import { thisComputer } from "../lib/platform";
 
 type Item = { view: View; label: string; icon: IconType; shortcut?: string; tip: string };
 
@@ -11,6 +13,7 @@ const MAIN: Item[] = [
   { view: "separate", label: "Separate", icon: SongTree, shortcut: "goSeparate", tip: "Load a song and split it into stems" },
   { view: "library", label: "Library", icon: Library, shortcut: "goLibrary", tip: "Songs you've already separated" },
   { view: "models", label: "Models", icon: Boxes, shortcut: "goModels", tip: "Installed and downloadable models" },
+  { view: "analyze", label: "Key & BPM", icon: Metronome, shortcut: "goAnalyze", tip: "Find a song's tempo and key — no separation" },
 ];
 const MORE: Item[] = [
   { view: "help", label: "Help", icon: CircleHelp, shortcut: "goHelp", tip: "How to use Prism" },
@@ -69,6 +72,7 @@ export function Sidebar() {
       <ul className="flex flex-col gap-0.5">{MORE.map((i) => row(i))}</ul>
 
       <div className="mt-auto flex flex-col gap-3 px-1">
+        <MasterVolume />
         <Segmented<Theme>
           label="Appearance"
           size="sm"
@@ -76,12 +80,12 @@ export function Sidebar() {
           value={theme}
           onChange={(v) => void update({ theme: v })}
           options={[
-            { value: "system", label: <Monitor size={13} />, aria: "Match system", tip: "Match macOS appearance" },
+            { value: "system", label: <Monitor size={13} />, aria: "Match system", tip: "Match the system appearance" },
             { value: "light", label: <Sun size={13} />, aria: "Light", tip: "Light appearance", shortcut: "toggleTheme" },
             { value: "dark", label: <Moon size={13} />, aria: "Dark", tip: "Dark appearance", shortcut: "toggleTheme" },
           ]}
         />
-        <p className="px-1.5 text-[11px] leading-relaxed text-faint">Runs entirely on this Mac. Your audio never leaves it.</p>
+        <p className="px-1.5 text-[11px] leading-relaxed text-faint">Runs entirely on {thisComputer}. Your audio never leaves it.</p>
       </div>
     </nav>
   );

@@ -13,7 +13,7 @@ use super::common::{params, run_f32};
 use crate::audio::Audio;
 use crate::dsp::{Spec, Stft, pad_reflect};
 use crate::manifest::{ModelManifest, StemSource};
-use crate::runtime::{RuntimeOptions, session};
+use crate::runtime::{LoadStep, RuntimeOptions, session};
 use crate::separator::{SeparateOptions, Separator, StemOutput};
 use crate::util::{CancelToken, Rng};
 use crate::{PrismError, Result};
@@ -66,14 +66,22 @@ pub struct Demucs {
 }
 
 impl Demucs {
-    pub fn new(m: &ModelManifest, dir: &Path, rt: &RuntimeOptions) -> Result<Self> {
+    pub fn new(m: &ModelManifest, dir: &Path, rt: &RuntimeOptions, on_step: &mut dyn FnMut(LoadStep)) -> Result<Self> {
         let p: Params = params(m)?;
         let mut models = Vec::new();
         let mut device = String::new();
-        for wf in m.weight_files() {
+        let files = m.weight_files();
+        for (index, wf) in files.iter().enumerate() {
+            let w = wf.stem_weights.clone().unwrap_or_else(|| vec![1.0; m.stems.len()]);
+            // A network that only serves one stem is that stem's specialist.
+            let mut live = w.iter().enumerate().filter(|(_, v)| **v > 0.0);
+            let stem = match (live.next(), live.next()) {
+                (Some((i, _)), None) if files.len() > 1 => m.stems.get(i).map(|s| s.label.clone()),
+                _ => None,
+            };
+            on_step(LoadStep { index, total: files.len(), stem });
             let (s, d) = session(&dir.join(&wf.file), rt)?;
             device = d;
-            let w = wf.stem_weights.clone().unwrap_or_else(|| vec![1.0; m.stems.len()]);
             models.push((s, w));
         }
         Ok(Demucs { manifest: m.clone(), models, stft: Stft::new(p.nfft, p.hop, true), seg: p.segment_samples, device })

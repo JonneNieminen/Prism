@@ -29,6 +29,17 @@ pub struct RuntimeOptions {
     pub cache_dir: Option<PathBuf>,
 }
 
+/// One step of loading a model, reported so the UI can say what is happening. Bagged models
+/// (e.g. Demucs fine-tuned) load several networks, each compiled for the accelerator in turn.
+#[derive(Clone, Debug)]
+pub struct LoadStep {
+    /// 0-based position of the network being loaded.
+    pub index: usize,
+    pub total: usize,
+    /// The stem this network specialises in, when it has one.
+    pub stem: Option<String>,
+}
+
 pub const CPU_LABEL: &str = "CPU";
 pub const ACCELERATED_LABEL: &str = if cfg!(target_arch = "aarch64") { "Apple Silicon (Core ML)" } else { "Core ML" };
 

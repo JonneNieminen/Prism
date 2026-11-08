@@ -18,8 +18,14 @@ export class StemEngine {
   private listeners = new Set<() => void>();
   duration = 0;
 
-  constructor() {
+  constructor(initialGain = 1) {
+    this.master.gain.value = initialGain;
     this.master.connect(this.ctx.destination);
+  }
+
+  /** Output level for all stems (0–1), ramped so it never clicks. */
+  setMasterGain(gain: number) {
+    this.master.gain.setTargetAtTime(gain, this.ctx.currentTime, 0.015);
   }
 
   /** Fetch + decode every stem (decoding runs off the main thread). */
@@ -144,7 +150,12 @@ export class StemEngine {
       const g = this.gains.get(m.id);
       if (!g) continue;
       const audible = anySolo ? m.solo : !m.muted;
-      g.gain.setTargetAtTime(audible ? m.volume : 0, now, 0.012);
+      // Instant (5 ms ramp, just enough to avoid a click). Cancel anything still scheduled
+      // so rapid toggles never queue up behind an earlier fade.
+      const target = audible ? m.volume : 0;
+      g.gain.cancelScheduledValues(now);
+      g.gain.setValueAtTime(g.gain.value, now);
+      g.gain.linearRampToValueAtTime(target, now + 0.005);
     }
   }
 

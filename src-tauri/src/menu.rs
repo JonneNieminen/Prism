@@ -1,6 +1,7 @@
-//! Native macOS menu bar. App commands mirror `src/lib/shortcuts.ts` and are
+//! Native menu bar (macOS menu bar, Windows/Linux window menu). App commands mirror `src/lib/shortcuts.ts` and are
 //! forwarded to the UI as a `menu` event carrying the command id. Standard
-//! items (Edit, Minimize ⌘M, Hide, Quit, Full Screen) are handled by macOS.
+//! items (Edit, Minimize, Hide, Full Screen on macOS) are handled by the OS. Accelerators use
+//! `CmdOrCtrl`, so each platform shows and uses its own modifier.
 
 use tauri::menu::{AboutMetadata, Menu, MenuItemBuilder, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Runtime};
@@ -47,7 +48,9 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item("exportStems", "Export All Stems…", Some("CmdOrCtrl+Shift+E"))?)
         .separator();
     if !cfg!(target_os = "macos") {
-        file = file.item(&item("goSettings", "Settings…", Some("CmdOrCtrl+Comma"))?).separator().quit();
+        file = file.item(&item("goSettings", "Settings…", Some("CmdOrCtrl+Comma"))?).separator();
+        // Windows closes with Alt+F4 (handled by the OS); Linux apps conventionally use Ctrl+Q.
+        file = if cfg!(target_os = "linux") { file.item(&item("quit", "Quit", Some("Ctrl+Q"))?) } else { file.quit() };
     } else {
         file = file.close_window();
     }
@@ -63,24 +66,33 @@ pub fn build<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .item(&item("toggleTheme", "Switch Light / Dark", Some("CmdOrCtrl+Shift+L"))?)
         .build()?;
 
-    let view = SubmenuBuilder::new(app, "View")
+    let mut view = SubmenuBuilder::new(app, "View")
         .item(&item("goSeparate", "Separate", Some("CmdOrCtrl+1"))?)
         .item(&item("goPlayer", "Player", Some("CmdOrCtrl+2"))?)
         .item(&item("goLibrary", "Library", Some("CmdOrCtrl+3"))?)
         .item(&item("goModels", "Models", Some("CmdOrCtrl+4"))?)
+        .item(&item("goAnalyze", "Key & BPM", Some("CmdOrCtrl+5"))?)
         .separator()
         .item(&appearance)
-        .separator()
-        .fullscreen()
-        .build()?;
+        .separator();
+    view = if cfg!(target_os = "macos") {
+        view.fullscreen()
+    } else {
+        view.item(&item("fullscreen", "Toggle Full Screen", Some("F11"))?)
+    };
+    let view = view.build()?;
 
-    // Single-key player shortcuts (Space, ←/→, 1–9, K, A, R) are handled by the
+    // Single-key player shortcuts (Space, ←/→, 1–9, K, A, R, M) are handled by the
     // page so they never steal keys from text fields; listed here for discovery.
     let playback = SubmenuBuilder::new(app, "Playback")
         .item(&item("playPause", "Play / Pause", None)?)
         .item(&item("toStart", "Go to Start", None)?)
         .item(&item("seekBack", "Back 5 Seconds", None)?)
         .item(&item("seekForward", "Forward 5 Seconds", None)?)
+        .separator()
+        .item(&item("masterUp", "Master Volume Up", Some("CmdOrCtrl+Up"))?)
+        .item(&item("masterDown", "Master Volume Down", Some("CmdOrCtrl+Down"))?)
+        .item(&item("masterMute", "Mute / Unmute", None)?)
         .separator()
         .item(&item("karaoke", "Karaoke (Remove Vocals)", None)?)
         .item(&item("acapella", "A Cappella (Vocals Only)", None)?)

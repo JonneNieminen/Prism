@@ -5,7 +5,7 @@ import type { Project } from "../../bindings";
 import { Modal } from "../../components/Modal";
 import { Button, Card, Chip, IconButton, PageHeader } from "../../components/ui";
 import { stemColor } from "../../lib/colors";
-import { formatBytes, formatDate, formatTime, QUALITY_LABEL } from "../../lib/format";
+import { formatBytes, formatDate, formatMusic, formatTime, QUALITY_LABEL } from "../../lib/format";
 import { backend, toAppError } from "../../lib/ipc";
 import { useApp } from "../../store/app";
 import { usePlayer } from "../player/playerStore";
@@ -119,7 +119,7 @@ export function LibraryView() {
                       </button>
                     )}
                     <div className="mt-0.5 truncate text-xs text-muted">
-                      {[p.artist, formatTime(p.durationSecs), formatDate(p.createdAt), `${p.model.name} · ${QUALITY_LABEL[p.quality]}`].filter(Boolean).join(" · ")}
+                      {[p.artist, formatTime(p.durationSecs), formatMusic(p.music), formatDate(p.createdAt), `${p.model.name} · ${QUALITY_LABEL[p.quality]}`].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   <div className="hidden items-center gap-1 md:flex">

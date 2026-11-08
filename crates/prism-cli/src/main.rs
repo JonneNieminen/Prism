@@ -3,6 +3,7 @@
 //!                  [--shifts N --overlap X]   (override the preset, for parity checks)
 //!   prism compare <a.wav> <b.wav>        (SNR in dB, for parity checks)
 //!   prism validate <model dir>
+//!   prism analyze <audio>...             (estimated tempo and key)
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -34,7 +35,25 @@ fn main() -> Result<()> {
             );
             Ok(())
         }
-        _ => bail!("usage: prism separate|compare|validate …"),
+        Some("analyze") => {
+            for path in &args[1..] {
+                let (audio, info) = decode_file(Path::new(path), &CancelToken::new())?;
+                let t = Instant::now();
+                let m = prism_core::musicinfo::analyze(&audio);
+                println!(
+                    "{:<28} {:>7}  {:<10} {:>4}  (tempo conf {:.2}, key conf {:.2}, {:.1}s)",
+                    info.file_name,
+                    m.bpm.map_or("-".into(), |b| format!("{b:.1}")),
+                    m.key.as_ref().map_or("-", |k| k.name.as_str()),
+                    m.key.as_ref().map_or("", |k| k.camelot.as_str()),
+                    m.bpm_confidence,
+                    m.key.as_ref().map_or(0.0, |k| k.confidence),
+                    t.elapsed().as_secs_f32()
+                );
+            }
+            Ok(())
+        }
+        _ => bail!("usage: prism separate|compare|validate|analyze …"),
     }
 }
 

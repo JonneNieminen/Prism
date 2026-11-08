@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import type { AppError, Project, Quality, Settings } from "../bindings";
-import { backend, toAppError, type JobEvent, type Models, type OpenProject, type Probe, type Stage } from "../lib/ipc";
+import type { AppError, MusicInfo, Project, Quality, Settings } from "../bindings";
+import { backend, toAppError, type Analysis, type JobEvent, type Models, type OpenProject, type Probe, type Stage } from "../lib/ipc";
 
-export type View = "separate" | "player" | "library" | "models" | "settings" | "help" | "shortcuts";
+export type View = "separate" | "player" | "library" | "models" | "analyze" | "settings" | "help" | "shortcuts";
 
 export type ExportTarget = { kind: "mix" } | { kind: "zip" } | { kind: "stem"; stemId: string };
 
@@ -12,7 +12,9 @@ export type Job = {
   fraction: number;
   eta: number | null;
   device: string | null;
+  detail: string | null;
   note: string | null;
+  startedAt: number;
   title: string;
   modelId: string;
   modelName: string;
@@ -37,10 +39,21 @@ type State = {
   jobError: AppError | null;
   project: OpenProject | null;
   projects: Project[];
+  /** Key and tempo detected after the fact, by project id (the open project object stays untouched). */
+  music: Record<string, MusicInfo>;
   toasts: Toast[];
   exportTarget: ExportTarget | null;
   /** A file is being dragged over the window. */
   dragOver: boolean;
+  /** Key & BPM view. */
+  analysis: (Analysis & { path: string }) | null;
+  analyzing: string | null;
+  analysisError: AppError | null;
+  analyze(path: string): Promise<void>;
+  pickAnalysis(): Promise<void>;
+  clearAnalysis(): void;
+  /** Hand the analysed song to the Separate view (already decoded). */
+  separateAnalyzed(): void;
 
   setExportTarget(t: ExportTarget | null): void;
   pickSource(): Promise<void>;
@@ -54,6 +67,7 @@ type State = {
   separate(modelId: string, quality: Quality): Promise<void>;
   cancelJob(): Promise<void>;
   openProject(id: string): Promise<void>;
+  ensureMusic(project: Project): Promise<void>;
   closeProject(): void;
   toast(t: Omit<Toast, "id">): void;
   dismissToast(id: number): void;
@@ -72,9 +86,40 @@ export const useApp = create<State>((set, get) => ({
   jobError: null,
   project: null,
   projects: [],
+  music: {},
   toasts: [],
   exportTarget: null,
   dragOver: false,
+  analysis: null,
+  analyzing: null,
+  analysisError: null,
+
+  async analyze(path) {
+    set({ analyzing: path, analysisError: null, view: "analyze" });
+    try {
+      const a = await (await backend()).analyzeTrack(path);
+      if (get().analyzing !== path) return;
+      set({ analysis: { ...a, path }, analyzing: null });
+    } catch (e) {
+      if (get().analyzing !== path) return;
+      set({ analyzing: null, analysisError: toAppError(e) });
+    }
+  },
+
+  async pickAnalysis() {
+    const b = await backend();
+    const info = await b.appInfo();
+    const p = await b.pickAudioFile(info.supportedExtensions);
+    if (p) await get().analyze(p);
+  },
+
+  clearAnalysis: () => set({ analysis: null, analysisError: null }),
+
+  separateAnalyzed() {
+    const a = get().analysis;
+    if (!a || get().job) return;
+    set({ source: { path: a.path, probe: { info: a.info, peaks: a.peaks } }, sourceError: null, jobError: null, view: "separate" });
+  },
 
   go: (view) => set({ view }),
   setExportTarget: (exportTarget) => set({ exportTarget }),
@@ -144,7 +189,9 @@ export const useApp = create<State>((set, get) => ({
           fraction: 0,
           eta: null,
           device: null,
+          detail: null,
           note: null,
+          startedAt: Date.now(),
           title: source.probe.info.title,
           modelId,
           modelName: model?.manifest.name ?? modelId,
@@ -158,6 +205,20 @@ export const useApp = create<State>((set, get) => ({
   async cancelJob() {
     const job = get().job;
     if (job) await (await backend()).cancelJob(job.id);
+  },
+
+  async ensureMusic(project) {
+    if (project.music || get().music[project.id]) return;
+    try {
+      const done = await (await backend()).detectMusic(project.id);
+      if (!done.music) return;
+      set({
+        music: { ...get().music, [project.id]: done.music },
+        projects: get().projects.map((p) => (p.id === project.id ? { ...p, music: done.music } : p)),
+      });
+    } catch {
+      // Key and tempo are a nicety; a failure shouldn't interrupt playback.
+    }
   },
 
   async openProject(id) {
@@ -185,7 +246,7 @@ function onJobEvent(e: JobEvent) {
   if (!s.job || s.job.id !== e.jobId) return;
   if (e.kind === "progress") {
     useApp.setState({
-      job: { ...s.job, stage: e.stage, fraction: e.fraction, eta: e.etaSecs, device: e.device ?? s.job.device, note: e.note },
+      job: { ...s.job, stage: e.stage, fraction: e.fraction, eta: e.etaSecs, device: e.device ?? s.job.device, detail: e.detail, note: e.note },
     });
   } else if (e.kind === "done") {
     useApp.setState({ job: null, source: null });

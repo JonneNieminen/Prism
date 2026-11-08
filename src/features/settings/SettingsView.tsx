@@ -4,6 +4,7 @@ import type { ExportFormat, Quality, Theme } from "../../bindings";
 import { Button, Card, Field, GroupLabel, PageHeader, Segmented, Switch } from "../../components/ui";
 import { formatBytes, QUALITY_LABEL } from "../../lib/format";
 import { backend, toAppError, type AppInfo } from "../../lib/ipc";
+import { keysFor } from "../../lib/shortcuts";
 import { useApp } from "../../store/app";
 import { usePlayer } from "../player/playerStore";
 
@@ -117,7 +118,7 @@ export function SettingsView() {
       </Group>
 
       <Group title="Appearance">
-        <Field label="Appearance" hint="Also in the sidebar, or press ⇧⌘L to switch light / dark.">
+        <Field label="Appearance" hint={`Also in the sidebar, or press ${keysFor("toggleTheme")} to switch light / dark.`}>
           <Segmented<Theme>
             label="Theme"
             value={settings.theme}

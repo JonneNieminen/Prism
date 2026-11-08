@@ -9,7 +9,7 @@ use ts_rs::TS;
 use crate::audio::Audio;
 use crate::manifest::{ModelManifest, Quality, StemSource};
 use crate::models::InstalledModel;
-use crate::runtime::RuntimeOptions;
+use crate::runtime::{LoadStep, RuntimeOptions};
 use crate::util::CancelToken;
 use crate::{PrismError, Result, adapters};
 
@@ -50,7 +50,16 @@ pub trait Separator: Send {
 }
 
 pub fn load(model: &InstalledModel, rt: &RuntimeOptions) -> Result<Box<dyn Separator>> {
-    adapters::create(&model.manifest, &model.dir, rt)
+    load_with(model, rt, &mut |_| {})
+}
+
+/// Like [`load`], reporting each network as it starts loading.
+pub fn load_with(
+    model: &InstalledModel,
+    rt: &RuntimeOptions,
+    on_step: &mut dyn FnMut(LoadStep),
+) -> Result<Box<dyn Separator>> {
+    adapters::create(&model.manifest, &model.dir, rt, on_step)
 }
 
 #[derive(Clone, Debug, Serialize, TS)]

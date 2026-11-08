@@ -86,7 +86,7 @@ fn separate_store_export() {
     assert!(snr > 10.0, "stems don't sum back to the mix (SNR {snr:.1} dB)");
 
     let lib = Library::new(t.path().join("projects"));
-    let p = lib.create(&info, &model.manifest, &stems, Quality::Fast, sep.device(), 1.0).unwrap();
+    let p = lib.create(&info, &model.manifest, &stems, Quality::Fast, sep.device(), 1.0, None).unwrap();
     assert_eq!(lib.list().len(), 1);
     assert_eq!(lib.peaks(&p.id).unwrap().len(), 4);
 

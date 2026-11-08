@@ -13,6 +13,7 @@ pub mod export;
 pub mod library;
 pub mod manifest;
 pub mod models;
+pub mod musicinfo;
 pub mod peaks;
 pub mod runtime;
 pub mod separator;

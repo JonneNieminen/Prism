@@ -5,6 +5,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Toasts } from "./components/Toasts";
 import { TooltipLayer } from "./components/Tooltip";
 import { Spinner } from "./components/ui";
+import { AnalyzeView } from "./features/analyze/AnalyzeView";
 import { HelpView } from "./features/help/HelpView";
 import { ShortcutsView } from "./features/help/ShortcutsView";
 import { SeparateView } from "./features/import/SeparateView";
@@ -14,7 +15,7 @@ import { PlayerView } from "./features/player/PlayerView";
 import { SettingsView } from "./features/settings/SettingsView";
 import { runCommand } from "./lib/commands";
 import { backend, isTauri, toAppError } from "./lib/ipc";
-import { matchEvent, type CommandId } from "./lib/shortcuts";
+import { hasMod, matchEvent, type CommandId } from "./lib/shortcuts";
 import { useApp, type View } from "./store/app";
 
 function useTheme() {
@@ -42,9 +43,9 @@ function useKeyboard() {
       const t = e.target as HTMLElement;
       const hit = matchEvent(e);
       if (!hit) return;
-      const mod = e.metaKey || e.ctrlKey;
+      const mod = hasMod(e);
       const typing = !!t.closest("input:not([type=range]):not([type=checkbox]), textarea, select, [contenteditable=true]");
-      if (typing && !mod) return;
+      if (typing && (!mod || hit.id === "masterUp" || hit.id === "masterDown")) return;
       // Keep native behaviour where the keyboard is driving a control.
       const kbFocused = t.matches(":focus-visible");
       if (!mod && hit.id === "playPause" && kbFocused && t.closest("button, [role=radio], [role=switch]")) return;
@@ -66,7 +67,8 @@ function useKeyboard() {
         else if (e.type === "leave") useApp.setState({ dragOver: false });
         else {
           useApp.setState({ dragOver: false });
-          if (e.paths[0]) void useApp.getState().loadSource(e.paths[0]);
+          const st = useApp.getState();
+          if (e.paths[0]) void (st.view === "analyze" ? st.analyze(e.paths[0]) : st.loadSource(e.paths[0]));
         }
       });
       if (alive) off = o;
@@ -142,6 +144,7 @@ export function App() {
                   {current === "player" && <PlayerView theme={theme} />}
                   {current === "library" && <LibraryView />}
                   {current === "models" && <ModelsView />}
+                  {current === "analyze" && <AnalyzeView />}
                   {current === "settings" && <SettingsView />}
                   {current === "help" && <HelpView />}
                   {current === "shortcuts" && <ShortcutsView />}
@@ -160,7 +163,7 @@ export function App() {
 
 /** Shown while a file is dragged over any screen except Separate (which has its own drop zone). */
 function DropOverlay() {
-  const show = useApp((s) => s.dragOver && s.view !== "separate");
+  const show = useApp((s) => s.dragOver && s.view !== "separate" && s.view !== "analyze");
   return (
     <AnimatePresence>
       {show && (
