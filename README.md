@@ -125,7 +125,7 @@ Files are named like `Song Title - vocals.wav`. Choose a default save folder in 
 
 ### Library, models and settings
 
-- **Library** keeps your separations, so reopening a song is instant. To save disk space songs are deleted after 7 days by default — choose another period or *Never* in *Settings → Storage → Delete old songs*.
+- **Library** keeps your separations, so reopening a song is instant. Type in its search field to find a song by title, artist, key (*A minor*, *8A*) or tempo. To save disk space songs are deleted after 7 days by default — choose another period or *Never* in *Settings → Storage → Delete old songs*.
 - **Models** lists installed models (stems, size, license, speed/quality) and a catalog of downloadable ones. Downloads use HTTPS and are SHA-256 verified before use. A model's license is shown before its first use, and non-commercial licenses are flagged.
 - **Settings**: default model and quality, hardware acceleration, export format and bitrate, default save folder, appearance, storage and catalog URL.
 - **Appearance**: match macOS, Light or Dark — from the sidebar, *View → Appearance*, Settings, or **⇧⌘L**.

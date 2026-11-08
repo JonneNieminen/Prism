@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Library, Pencil, Play, Trash2, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, Library, Pencil, Play, Search, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { Project } from "../../bindings";
 import { Modal } from "../../components/Modal";
 import { Button, Card, Chip, IconButton, PageHeader } from "../../components/ui";
@@ -21,6 +21,16 @@ export function LibraryView() {
   const [size, setSize] = useState<number | null>(null);
   const [confirm, setConfirm] = useState<"all" | Project | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  // Every word must appear somewhere: title, artist, file name, key, tempo or model.
+  const shown = useMemo(() => {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length === 0) return projects;
+    return projects.filter((p) => {
+      const hay = [p.title, p.artist, p.sourceFileName, formatMusic(p.music), p.music?.key?.camelot, p.model.name].filter(Boolean).join(" ").toLowerCase();
+      return words.every((w) => hay.includes(w));
+    });
+  }, [projects, query]);
 
   useEffect(() => {
     void refresh();
@@ -83,65 +93,90 @@ export function LibraryView() {
           </Button>
         </Card>
       ) : (
-        <ul className="card divide-y divide-[var(--border)] overflow-hidden">
-          <AnimatePresence initial={false}>
-            {projects.map((p, i) => (
-              <motion.li
-                key={p.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 10) * 0.03 } }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <div className="group flex items-center gap-3.5 px-3 py-2.5 pr-3 transition-colors hover:bg-elevated/60">
-                  <button
-                    onClick={() => openProject(p.id)}
-                    aria-label={`Open ${p.title}`}
-                    data-tip="Open in the player"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent transition-colors hover:bg-accent hover:text-white"
-                  >
-                    <Play size={15} fill="currentColor" className="ml-0.5" />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    {editing === p.id ? (
-                      <RenameField
-                        initial={p.title}
-                        onDone={async (title) => {
-                          setEditing(null);
-                          if (title && title !== p.title) {
-                            await (await backend()).renameProject(p.id, title).catch((e) => toast({ tone: "error", title: "Couldn't rename", body: toAppError(e).message }));
-                            void refresh();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <button className="block max-w-full truncate text-left text-[13px] font-medium hover:underline" onClick={() => openProject(p.id)} data-tip="Open in the player">
-                        {p.title}
-                      </button>
-                    )}
-                    <div className="mt-0.5 truncate text-xs text-muted">
-                      {[p.artist, formatTime(p.durationSecs), formatMusic(p.music), formatDate(p.createdAt), `${p.model.name} · ${QUALITY_LABEL[p.quality]}`].filter(Boolean).join(" · ")}
+        <>
+          {projects.length > 1 && (
+            <div className="relative mb-3">
+              <Search size={14} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && query && (e.stopPropagation(), setQuery(""))}
+                placeholder="Search by title, artist, key or BPM"
+                aria-label="Search the library"
+                data-tip="Type any part of a title, artist, key (e.g. A minor, 8A) or tempo"
+                className="h-9 w-full rounded-lg border border-border bg-surface pr-3 pl-9 text-[13px] outline-none placeholder:text-faint focus:border-accent"
+              />
+            </div>
+          )}
+          {shown.length === 0 && (
+            <p className="card px-4 py-6 text-center text-[13px] text-muted">
+              No songs match “{query}”.{" "}
+              <button className="text-accent hover:underline" onClick={() => setQuery("")}>
+                Show all
+              </button>
+            </p>
+          )}
+          <ul className={shown.length ? "card divide-y divide-[var(--border)] overflow-hidden" : "hidden"}>
+            <AnimatePresence initial={false}>
+              {shown.map((p, i) => (
+                <motion.li
+                  key={p.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0, transition: { delay: Math.min(i, 10) * 0.03 } }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <div className="group flex items-center gap-3.5 px-3 py-2.5 pr-3 transition-colors hover:bg-elevated/60">
+                    <button
+                      onClick={() => openProject(p.id)}
+                      aria-label={`Open ${p.title}`}
+                      data-tip="Open in the player"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent transition-colors hover:bg-accent hover:text-white"
+                    >
+                      <Play size={15} fill="currentColor" className="ml-0.5" />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      {editing === p.id ? (
+                        <RenameField
+                          initial={p.title}
+                          onDone={async (title) => {
+                            setEditing(null);
+                            if (title && title !== p.title) {
+                              await (await backend()).renameProject(p.id, title).catch((e) => toast({ tone: "error", title: "Couldn't rename", body: toAppError(e).message }));
+                              void refresh();
+                            }
+                          }}
+                        />
+                      ) : (
+                        <button className="block max-w-full truncate text-left text-[13px] font-medium hover:underline" onClick={() => openProject(p.id)} data-tip="Open in the player">
+                          {p.title}
+                        </button>
+                      )}
+                      <div className="mt-0.5 truncate text-xs text-muted">
+                        {[p.artist, formatTime(p.durationSecs), formatMusic(p.music), formatDate(p.createdAt), `${p.model.name} · ${QUALITY_LABEL[p.quality]}`].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                    <div className="hidden items-center gap-1 md:flex">
+                      {p.stems.map((s) => (
+                        <span key={s.id} data-tip={s.label} className="h-1.5 w-5 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
+                      ))}
+                    </div>
+                    {current?.project.id === p.id && <Chip color="var(--accent)" tip="Currently open in the player">Open</Chip>}
+                    <div className="flex opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                      <IconButton label={`Rename ${p.title}`} onClick={() => setEditing(p.id)}>
+                        <Pencil size={16} />
+                      </IconButton>
+                      <IconButton label={`Delete ${p.title}`} onClick={() => setConfirm(p)}>
+                        <Trash2 size={16} />
+                      </IconButton>
                     </div>
                   </div>
-                  <div className="hidden items-center gap-1 md:flex">
-                    {p.stems.map((s) => (
-                      <span key={s.id} data-tip={s.label} className="h-1.5 w-5 rounded-full" style={{ background: stemColor(s.id, s.color) }} />
-                    ))}
-                  </div>
-                  {current?.project.id === p.id && <Chip color="var(--accent)" tip="Currently open in the player">Open</Chip>}
-                  <div className="flex opacity-60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                    <IconButton label={`Rename ${p.title}`} onClick={() => setEditing(p.id)}>
-                      <Pencil size={16} />
-                    </IconButton>
-                    <IconButton label={`Delete ${p.title}`} onClick={() => setConfirm(p)}>
-                      <Trash2 size={16} />
-                    </IconButton>
-                  </div>
-                </div>
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </ul>
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
+        </>
       )}
 
       <Modal open={!!confirm} onClose={() => setConfirm(null)} title={confirm === "all" ? "Clear the whole library?" : "Delete this project?"}>
