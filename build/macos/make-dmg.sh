@@ -2,14 +2,14 @@
 # Drag-to-install DMG from a built Prism.app: the app, an Applications shortcut and
 # "READ ME FIRST.txt" with the one-time command for unnotarized builds.
 #
-# Usage: build/macos/make-dmg.sh <Prism.app> <version> <rid: osx-arm64|osx-x64> <output-dir>
+# Usage: build/macos/make-dmg.sh <Prism.app> <version> <rid: macOS-arm64|macOS-x64> <output-dir>
 set -euo pipefail
 
 src="$1"; version="$2"; rid="$3"; out="$4"
 here="$(cd "$(dirname "$0")" && pwd)"
 case "$rid" in
-  osx-arm64) arch="Apple silicon" ;;
-  osx-x64)   arch="Intel" ;;
+  macOS-arm64) arch="Apple silicon" ;;
+  macOS-x64)   arch="Intel" ;;
   *)         arch="$rid" ;;
 esac
 

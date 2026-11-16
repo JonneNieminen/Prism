@@ -15,8 +15,8 @@ if (!dir || !version || !tag || !repo) {
 
 // Tauri's platform key -> the file Prism publishes for it.
 const PLATFORMS = {
-  "darwin-aarch64": `Prism-${version}-osx-arm64.app.tar.gz`,
-  "darwin-x86_64": `Prism-${version}-osx-x64.app.tar.gz`,
+  "darwin-aarch64": `Prism-${version}-macOS-arm64.app.tar.gz`,
+  "darwin-x86_64": `Prism-${version}-macOS-x64.app.tar.gz`,
   "windows-x86_64": `Prism-${version}-win-x64-setup.exe`,
   "windows-aarch64": `Prism-${version}-win-arm64-setup.exe`,
   "linux-x86_64": `Prism-${version}-linux-x64.AppImage`,

@@ -93,7 +93,7 @@ Download the installer for your computer from [Releases](https://github.com/Jonn
 
 | Platform | File |
 |---|---|
-| **macOS** (Apple silicon / Intel) | `Prism-x.y.z-osx-arm64.dmg` / `Prism-x.y.z-osx-x64.dmg` |
+| **macOS** (Apple silicon / Intel) | `Prism-x.y.z-macOS-arm64.dmg` / `Prism-x.y.z-macOS-x64.dmg` |
 | **Windows** (x64 / ARM) | `Prism-x.y.z-win-x64-setup.exe` / `Prism-x.y.z-win-arm64-setup.exe` |
 | **Linux** (x64 / ARM) | `Prism-x.y.z-linux-x64.AppImage` or `.deb` (`linux-arm64` too) |
 

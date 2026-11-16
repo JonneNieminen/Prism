@@ -134,7 +134,7 @@ jobs:
           {
             echo "## Install"
             echo
-            echo "- **macOS**: download the \`.dmg\` for your Mac (\`osx-arm64\` = Apple silicon, \`osx-x64\` = Intel), drag Prism to Applications, then run this once in Terminal (the build isn't notarized yet):"
+            echo "- **macOS**: download the \`.dmg\` for your Mac (\`macOS-arm64\` = Apple silicon, \`macOS-x64\` = Intel), drag Prism to Applications, then run this once in Terminal (the build isn't notarized yet):"
             echo
             echo '  ```bash'
             echo '  xattr -dr com.apple.quarantine /Applications/Prism.app'
