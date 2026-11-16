@@ -1,5 +1,7 @@
 # Build: checks, tests on every platform, then installers for every platform Prism supports
 # (via package.yml, stamped 0.0.1-ci.<run> so CI builds never look like a real release).
+# Intel Macs (macOS-x64) build in their own workflow, build-macos-x64.yml, so their slower
+# runners don't hold up this one. Release still builds every platform.
 # Runs on pushes to main, on pull requests and on demand. Dependabot's PRs run the full matrix
 # like any other PR; "Build result" is the single check to require before merging.
 # Needs no secrets, because Dependabot PRs can't read repository secrets.
@@ -51,7 +53,6 @@ jobs:
       matrix:
         include:
           - { os: macos-26,            rid: macOS-arm64 }
-          - { os: macos-26-intel,      rid: macOS-x64 }
           - { os: windows-2025-vs2026, rid: win-x64 }
           - { os: windows-11-arm,      rid: win-arm64 }
           - { os: ubuntu-26.04,        rid: linux-x64 }
@@ -74,6 +75,7 @@ jobs:
     uses: ./.github/workflows/package.yml
     with:
       version: 0.0.1-ci.${{ github.run_number }}
+      rids: macOS-arm64 win-x64 win-arm64 linux-x64 linux-arm64
 
   # One required check for branch protection and Dependabot PRs: green only when the checks,
   # every platform's tests and every installer succeeded.

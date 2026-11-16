@@ -1,5 +1,5 @@
-# Package: builds Prism's installers for every platform at a given version. Called by Build
-# (CI versions) and Release (real versions). Installers are named Prism-<version>-<rid>.<ext>.
+# Package: builds Prism's installers for every platform (or the `rids` given) at a given version.
+# Called by Build and Build (macOS x64) for CI versions, and by Release for real versions. Installers are named Prism-<version>-<rid>.<ext>.
 name: Package
 
 on:
@@ -12,6 +12,10 @@ on:
       retention-days:
         type: number
         default: 14
+      rids:
+        description: Space-separated platforms to build (e.g. "macOS-x64"); empty builds all of them.
+        type: string
+        default: ""
     secrets:
       # Optional. With the signing key the build also makes signed update files for in-app updates.
       TAURI_SIGNING_PRIVATE_KEY:
@@ -27,18 +31,40 @@ env:
   VERSION: ${{ inputs.version }}
 
 jobs:
+  # Every platform Prism ships, narrowed to `inputs.rids` when given.
+  platforms:
+    name: Platforms
+    runs-on: ubuntu-26.04
+    outputs:
+      include: ${{ steps.pick.outputs.include }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          RIDS: ${{ inputs.rids }}
+        run: |
+          set -euo pipefail
+          all='[
+            { "os": "macos-26",            "rid": "macOS-arm64", "bundles": "app" },
+            { "os": "macos-26-intel",      "rid": "macOS-x64",   "bundles": "app" },
+            { "os": "windows-2025-vs2026", "rid": "win-x64",     "bundles": "nsis" },
+            { "os": "windows-11-arm",      "rid": "win-arm64",   "bundles": "nsis" },
+            { "os": "ubuntu-26.04",        "rid": "linux-x64",   "bundles": "appimage,deb" },
+            { "os": "ubuntu-26.04-arm",    "rid": "linux-arm64", "bundles": "appimage,deb" }
+          ]'
+          include=$(jq -c --arg rids "$RIDS" '
+            ($rids | split(" ") | map(select(. != ""))) as $want
+            | if ($want | length) == 0 then . else map(select(.rid as $r | $want | index($r))) end' <<< "$all")
+          [[ "$include" != "[]" ]] || { echo "::error::No known platform in '$RIDS'."; exit 1; }
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+
   desktop:
     name: ${{ matrix.rid }}
+    needs: platforms
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: macos-26,            rid: macOS-arm64, bundles: app }
-          - { os: macos-26-intel,      rid: macOS-x64,   bundles: app }
-          - { os: windows-2025-vs2026, rid: win-x64,     bundles: nsis }
-          - { os: windows-11-arm,      rid: win-arm64,   bundles: nsis }
-          - { os: ubuntu-26.04,        rid: linux-x64,   bundles: "appimage,deb" }
-          - { os: ubuntu-26.04-arm,    rid: linux-arm64, bundles: "appimage,deb" }
+        include: ${{ fromJSON(needs.platforms.outputs.include) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7

@@ -1,0 +1,45 @@
+# Build (macOS x64): tests and the installer for Intel Macs, split out of Build because the
+# Intel runners are slower and scarcer. Same triggers as Build; it reports its own check,
+# separate from "Build result". Release still builds macOS-x64 along with every other platform.
+name: Build (macOS x64)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["**.md"]
+  pull_request:
+    paths-ignore: ["**.md"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-macos-x64-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test (macOS-x64)
+    runs-on: macos-26-intel
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+        with:
+          rust-components: clippy
+      - run: npm run build
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests (unit + end-to-end separation on this platform)
+        run: cargo test --workspace
+
+  desktop:
+    name: Desktop
+    needs: test
+    uses: ./.github/workflows/package.yml
+    with:
+      version: 0.0.1-ci.${{ github.run_number }}
+      rids: macOS-x64
