@@ -36,6 +36,18 @@ runs:
           libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev \
           libxdo-dev patchelf file xdg-utils
 
+    # ort-sys downloads prebuilt ONNX Runtime from pyke's CDN in its build script, with no
+    # retry; keeping its default cache dir (per OS below) means most builds skip the download.
+    - name: Cache ONNX Runtime binaries
+      uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cache/ort.pyke.io
+          ~/Library/Caches/ort.pyke.io
+          ~/AppData/Local/ort.pyke.io
+        key: ort-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}
+        restore-keys: ort-${{ runner.os }}-${{ runner.arch }}-
+
     - name: npm ci
       shell: bash
       run: npm ci

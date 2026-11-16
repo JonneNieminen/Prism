@@ -67,7 +67,17 @@ jobs:
             if (Object.keys(bundle).length) c.bundle = bundle;
             console.log(JSON.stringify(c));
           ')
-          npx tauri build --ci --bundles ${{ matrix.bundles }} --config "$config"
+          # A dropped connection while ort-sys downloads ONNX Runtime fails the build; retry
+          # just that case (other failures fail right away).
+          for attempt in 1 2 3; do
+            if npx tauri build --ci --bundles ${{ matrix.bundles }} --config "$config" 2>&1 | tee build.log; then
+              exit 0
+            fi
+            grep -qE 'ort-sys.*(failed to download|extraction of prebuilt binaries)' build.log || exit 1
+            echo "::warning::ONNX Runtime download failed (attempt $attempt), retrying."
+            sleep 15
+          done
+          exit 1
 
       # macOS: drag-to-install DMG with "READ ME FIRST.txt", plus a render of the icon as macOS
       # shows it (Icon Composer icon from Assets.car, so no grey plate on macOS 26+).
