@@ -66,6 +66,7 @@ const listeners = {
   sep: new Set<(e: JobEvent) => void>(),
   dl: new Set<(e: DownloadEvent) => void>(),
   track: new Set<(e: TrackEvent) => void>(),
+  exp: new Set<(e: { jobId: string; fraction: number }) => void>(),
   update: new Set<(e: UpdateEvent) => void>(),
 };
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -148,6 +149,17 @@ function demoProject(title: string, id: string = crypto.randomUUID()): Project {
 }
 
 const urls = new Map<string, Record<string, string>>();
+
+/** A pretend export: progress over `ms`, cancellable; a target path containing "fail" fails halfway. */
+async function mockExport(jobId: string, ms: number, target = "") {
+  const steps = 50;
+  for (let i = 1; i <= steps; i++) {
+    await sleep(ms / steps);
+    if (cancelled.has(jobId)) throw { kind: "cancelled", message: "Cancelled" };
+    if (target.includes("fail") && i === steps / 2) throw { kind: "io", message: "The disk is full. Free some space and try again." };
+    listeners.exp.forEach((l) => l({ jobId, fraction: i / steps }));
+  }
+}
 
 export function mockBackend(): Backend {
   if (projects.length === 0) projects.push({ ...demoProject("Midnight Drive", "demo-midnight-drive"), createdAt: Date.now() - 86_400_000 * 2 });
@@ -297,9 +309,9 @@ export function mockBackend(): Backend {
     deleteProject: async (id) => void projects.splice(projects.findIndex((p) => p.id === id), 1),
     clearCache: async (library) => void (library && projects.splice(0)),
     suggestFileName: async (title, suffix, ext) => `${title} - ${suffix}.${ext}`,
-    exportStem: () => sleep(700),
-    exportMix: () => sleep(900),
-    exportZip: () => sleep(1500),
+    exportStem: (jobId, _p, _s, _o, target) => mockExport(jobId, 3000, target),
+    exportMix: (jobId, _p, _g, _o, target) => mockExport(jobId, 4000, target),
+    exportZip: (jobId, _p, _o, target) => mockExport(jobId, 7000, target),
     listModels: async () => ({
       listing: {
         models: [info(demucs, true), ...installed.map((m) => info(m, false))],
@@ -330,7 +342,7 @@ export function mockBackend(): Backend {
     },
     onSeparation: async (cb) => (listeners.sep.add(cb), () => void listeners.sep.delete(cb)),
     onDownload: async (cb) => (listeners.dl.add(cb), () => void listeners.dl.delete(cb)),
-    onExportProgress: async () => () => {},
+    onExportProgress: async (cb) => (listeners.exp.add(cb), () => void listeners.exp.delete(cb)),
     onDragDrop: async (cb) => {
       const over = (e: DragEvent) => (e.preventDefault(), cb({ type: "over", paths: [] }));
       const leave = () => cb({ type: "leave", paths: [] });

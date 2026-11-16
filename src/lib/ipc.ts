@@ -101,8 +101,9 @@ export interface Backend {
   deleteProject(id: string): Promise<void>;
   clearCache(library: boolean, accelerator: boolean): Promise<void>;
   suggestFileName(title: string, suffix: string, ext: string): Promise<string>;
-  exportStem(projectId: string, stemId: string, options: ExportOptions, target: string): Promise<void>;
-  exportMix(projectId: string, gains: MixGain[], options: ExportOptions, target: string): Promise<void>;
+  // Each export is a cancellable job (`cancelJob`) reporting through `onExportProgress`.
+  exportStem(jobId: string, projectId: string, stemId: string, options: ExportOptions, target: string): Promise<void>;
+  exportMix(jobId: string, projectId: string, gains: MixGain[], options: ExportOptions, target: string): Promise<void>;
   exportZip(jobId: string, projectId: string, options: ExportOptions, target: string): Promise<void>;
   listModels(): Promise<Models>;
   importModel(path: string): Promise<ModelManifest>;
@@ -170,8 +171,8 @@ async function tauriBackend(): Promise<Backend> {
     deleteProject: (id) => invoke("delete_project", { id }),
     clearCache: (library, accelerator) => invoke("clear_cache", { library, accelerator }),
     suggestFileName: (title, suffix, ext) => invoke("suggest_file_name", { title, suffix, ext }),
-    exportStem: (projectId, stemId, options, target) => invoke("export_stem", { projectId, stemId, options, target }),
-    exportMix: (projectId, gains, options, target) => invoke("export_mix", { projectId, gains, options, target }),
+    exportStem: (jobId, projectId, stemId, options, target) => invoke("export_stem", { jobId, projectId, stemId, options, target }),
+    exportMix: (jobId, projectId, gains, options, target) => invoke("export_mix", { jobId, projectId, gains, options, target }),
     exportZip: (jobId, projectId, options, target) => invoke("export_zip", { jobId, projectId, options, target }),
     listModels: () => invoke("list_models"),
     importModel: (path) => invoke("import_model", { path }),

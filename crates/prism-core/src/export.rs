@@ -106,6 +106,39 @@ pub fn default_file_name(title: &str, suffix: &str, ext: &str) -> String {
     format!("{} - {}.{}", sanitize_filename(title), sanitize_filename(suffix), ext)
 }
 
+/// Reports how far one export has got (0..=1) and carries its cancel token. `sub` hands a
+/// stage its own 0..=1 slice of the parent's range, so stages report without knowing the whole.
+pub struct Progress<'a> {
+    report: &'a mut dyn FnMut(f32),
+    cancel: &'a CancelToken,
+    start: f32,
+    span: f32,
+}
+
+impl<'a> Progress<'a> {
+    pub fn new(report: &'a mut dyn FnMut(f32), cancel: &'a CancelToken) -> Self {
+        Self { report, cancel, start: 0.0, span: 1.0 }
+    }
+    pub fn set(&mut self, f: f32) {
+        (self.report)(self.start + self.span * f.clamp(0.0, 1.0));
+    }
+    pub fn check(&self) -> Result<()> {
+        self.cancel.check()
+    }
+    /// The part of this range from `a` to `b` (both 0..=1).
+    pub fn sub(&mut self, a: f32, b: f32) -> Progress<'_> {
+        Progress {
+            report: &mut *self.report,
+            cancel: self.cancel,
+            start: self.start + self.span * a,
+            span: self.span * (b - a),
+        }
+    }
+}
+
+/// Frames between progress reports and cancel checks while encoding.
+const REPORT_EVERY: usize = 1 << 16;
+
 fn part_path(target: &Path) -> PathBuf {
     let mut s = target.as_os_str().to_owned();
     s.push(".part");
@@ -127,6 +160,10 @@ fn write_atomic(target: &Path, f: impl FnOnce(&Path) -> Result<()>) -> Result<()
 }
 
 pub fn encode(audio: &Audio, opts: &ExportOptions, target: &Path) -> Result<()> {
+    encode_with(audio, opts, target, &mut Progress::new(&mut |_| {}, &CancelToken::new()))
+}
+
+pub fn encode_with(audio: &Audio, opts: &ExportOptions, target: &Path, prog: &mut Progress) -> Result<()> {
     let trimmed;
     let audio = match opts.range {
         Some(r) => {
@@ -135,10 +172,14 @@ pub fn encode(audio: &Audio, opts: &ExportOptions, target: &Path) -> Result<()> 
         }
         None => audio,
     };
-    write_atomic(target, |tmp| match opts.format {
-        ExportFormat::Wav => write_wav24(audio, tmp),
-        ExportFormat::Flac => write_flac(audio, tmp),
-        ExportFormat::Mp3 => write_mp3(audio, opts.mp3_bitrate, tmp),
+    write_atomic(target, |tmp| {
+        match opts.format {
+            ExportFormat::Wav => write_wav24(audio, tmp, prog),
+            ExportFormat::Flac => write_flac(audio, tmp, prog),
+            ExportFormat::Mp3 => write_mp3(audio, opts.mp3_bitrate, tmp, prog),
+        }?;
+        prog.set(1.0);
+        Ok(())
     })
 }
 
@@ -146,7 +187,7 @@ fn to_i24(v: f32) -> i32 {
     (v.clamp(-1.0, 1.0) * 8_388_607.0).round() as i32
 }
 
-fn write_wav24(a: &Audio, p: &Path) -> Result<()> {
+fn write_wav24(a: &Audio, p: &Path, prog: &mut Progress) -> Result<()> {
     let spec = hound::WavSpec {
         channels: a.channels.len() as u16,
         sample_rate: a.sample_rate,
@@ -155,7 +196,12 @@ fn write_wav24(a: &Audio, p: &Path) -> Result<()> {
     };
     let err = |e: hound::Error| PrismError::Io(format!("Couldn't write WAV: {e}"));
     let mut w = hound::WavWriter::create(p, spec).map_err(err)?;
-    for i in 0..a.frames() {
+    let n = a.frames();
+    for i in 0..n {
+        if i % REPORT_EVERY == 0 {
+            prog.check()?;
+            prog.set(i as f32 / n as f32);
+        }
         for c in &a.channels {
             w.write_sample(to_i24(c[i])).map_err(err)?;
         }
@@ -163,9 +209,50 @@ fn write_wav24(a: &Audio, p: &Path) -> Result<()> {
     w.finalize().map_err(err)
 }
 
-fn write_flac(a: &Audio, p: &Path) -> Result<()> {
+/// Hands flacenc the samples and reports how far it has read (it encodes as it reads).
+/// On cancel it ends the stream early; `write_flac` then returns `Cancelled`.
+struct ProgressSource<'p, 'a> {
+    inner: flacenc::source::MemSource,
+    frames: usize,
+    read: usize,
+    prog: &'p mut Progress<'a>,
+}
+
+impl flacenc::source::Source for ProgressSource<'_, '_> {
+    fn channels(&self) -> usize {
+        self.inner.channels()
+    }
+    fn bits_per_sample(&self) -> usize {
+        self.inner.bits_per_sample()
+    }
+    fn sample_rate(&self) -> usize {
+        self.inner.sample_rate()
+    }
+    fn read_samples<F: flacenc::source::Fill>(
+        &mut self,
+        block_size: usize,
+        dest: &mut F,
+    ) -> std::result::Result<usize, flacenc::error::SourceError> {
+        if self.prog.check().is_err() {
+            return Ok(0);
+        }
+        let n = self.inner.read_samples(block_size, dest)?;
+        let before = self.read / REPORT_EVERY;
+        self.read += n;
+        if self.read / REPORT_EVERY != before && self.frames > 0 {
+            self.prog.set(self.read as f32 / self.frames as f32);
+        }
+        Ok(n)
+    }
+    fn len_hint(&self) -> Option<usize> {
+        self.inner.len_hint()
+    }
+}
+
+fn write_flac(a: &Audio, p: &Path, prog: &mut Progress) -> Result<()> {
     use flacenc::component::BitRepr;
     use flacenc::error::Verify;
+    use flacenc::source::Source;
     let err = |m: String| PrismError::Io(format!("Couldn't write FLAC: {m}"));
     let nch = a.channels.len();
     let mut inter = Vec::with_capacity(a.frames() * nch);
@@ -175,8 +262,12 @@ fn write_flac(a: &Audio, p: &Path) -> Result<()> {
         }
     }
     let cfg = flacenc::config::Encoder::default().into_verified().map_err(|e| err(format!("{e:?}")))?;
-    let src = flacenc::source::MemSource::from_samples(&inter, nch, 24, a.sample_rate as usize);
+    prog.check()?;
+    let inner = flacenc::source::MemSource::from_samples(&inter, nch, 24, a.sample_rate as usize);
+    let frames = inner.len_hint().unwrap_or(0);
+    let src = ProgressSource { inner, frames, read: 0, prog: &mut *prog };
     let stream = flacenc::encode_with_fixed_block_size(&cfg, src, cfg.block_size).map_err(|e| err(format!("{e:?}")))?;
+    prog.check()?;
     let mut sink = flacenc::bitsink::ByteSink::new();
     stream.write(&mut sink).map_err(|e| err(format!("{e:?}")))?;
     let mut bytes = sink.as_slice().to_vec();
@@ -192,7 +283,7 @@ fn write_flac(a: &Audio, p: &Path) -> Result<()> {
     Ok(())
 }
 
-fn write_mp3(a: &Audio, kbps: u32, p: &Path) -> Result<()> {
+fn write_mp3(a: &Audio, kbps: u32, p: &Path, prog: &mut Progress) -> Result<()> {
     use mp3lame_encoder::{Bitrate, Builder, DualPcm, FlushNoGap, Quality};
     let err = |m: String| PrismError::Io(format!("Couldn't write MP3: {m}"));
     let br = match kbps {
@@ -214,6 +305,8 @@ fn write_mp3(a: &Audio, kbps: u32, p: &Path) -> Result<()> {
     let mut out = Vec::new();
     const BLOCK: usize = 1152 * 32;
     for start in (0..a.frames()).step_by(BLOCK) {
+        prog.check()?;
+        prog.set(start as f32 / a.frames() as f32);
         let end = (start + BLOCK).min(a.frames());
         let left: Vec<i16> = l[start..end].iter().map(|v| q(*v)).collect();
         let right: Vec<i16> = r[start..end].iter().map(|v| q(*v)).collect();
@@ -229,16 +322,35 @@ fn write_mp3(a: &Audio, kbps: u32, p: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn export_stem(lib: &Library, p: &Project, stem_id: &str, opts: &ExportOptions, target: &Path) -> Result<()> {
+/// Share of an export's progress bar spent reading the stems before encoding starts.
+const READ_SHARE: f32 = 0.1;
+
+pub fn export_stem(
+    lib: &Library,
+    p: &Project,
+    stem_id: &str,
+    opts: &ExportOptions,
+    target: &Path,
+    prog: &mut Progress,
+) -> Result<()> {
+    prog.check()?;
     let a = read_wav(&lib.stem_path(p, stem_id)?)?;
-    encode(&a, opts, target)
+    prog.set(READ_SHARE);
+    encode_with(&a, opts, target, &mut prog.sub(READ_SHARE, 1.0))
 }
 
 /// Sum the stems with the given gains (stems not listed are left out).
 pub fn render_mix(lib: &Library, p: &Project, gains: &[MixGain]) -> Result<Audio> {
+    render_mix_with(lib, p, gains, &mut Progress::new(&mut |_| {}, &CancelToken::new()))
+}
+
+fn render_mix_with(lib: &Library, p: &Project, gains: &[MixGain], prog: &mut Progress) -> Result<Audio> {
     let mut mix: Option<Audio> = None;
-    for g in gains.iter().filter(|g| g.gain > 0.0) {
+    let on: Vec<_> = gains.iter().filter(|g| g.gain > 0.0).collect();
+    for (i, g) in on.iter().enumerate() {
+        prog.check()?;
         let a = read_wav(&lib.stem_path(p, &g.stem_id)?)?;
+        prog.set((i + 1) as f32 / on.len() as f32);
         match mix.as_mut() {
             None => {
                 let mut a = a;
@@ -255,8 +367,17 @@ pub fn render_mix(lib: &Library, p: &Project, gains: &[MixGain]) -> Result<Audio
     mix.ok_or_else(|| PrismError::Other("Every stem is muted — turn at least one on to export a mix.".into()))
 }
 
-pub fn export_mix(lib: &Library, p: &Project, gains: &[MixGain], opts: &ExportOptions, target: &Path) -> Result<()> {
-    encode(&render_mix(lib, p, gains)?, opts, target)
+pub fn export_mix(
+    lib: &Library,
+    p: &Project,
+    gains: &[MixGain],
+    opts: &ExportOptions,
+    target: &Path,
+    prog: &mut Progress,
+) -> Result<()> {
+    // Mixing reads every kept stem, so it gets a bigger share than a single stem's read.
+    let mix = render_mix_with(lib, p, gains, &mut prog.sub(0.0, 3.0 * READ_SHARE))?;
+    encode_with(&mix, opts, target, &mut prog.sub(3.0 * READ_SHARE, 1.0))
 }
 
 /// All stems in one zip (stored, audio doesn't deflate usefully).
@@ -266,8 +387,7 @@ pub fn export_zip(
     opts: &ExportOptions,
     target: &Path,
     tmp_dir: &Path,
-    progress: &mut dyn FnMut(f32),
-    cancel: &CancelToken,
+    prog: &mut Progress,
 ) -> Result<()> {
     fs::create_dir_all(tmp_dir)?;
     write_atomic(target, |tmp| {
@@ -276,10 +396,11 @@ pub fn export_zip(
         let zopts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
         let n = p.stems.len();
         for (i, s) in p.stems.iter().enumerate() {
-            cancel.check()?;
+            prog.check()?;
             let name = default_file_name(&p.title, &s.id, opts.format.ext());
             let enc_path = tmp_dir.join(format!("{}-{}", uuid::Uuid::new_v4(), name));
-            let r = export_stem(lib, p, &s.id, opts, &enc_path).and_then(|_| {
+            let (a, b) = (i as f32 / n as f32, (i + 1) as f32 / n as f32);
+            let r = export_stem(lib, p, &s.id, opts, &enc_path, &mut prog.sub(a, b)).and_then(|_| {
                 z.start_file(name, zopts).map_err(|e| PrismError::Io(format!("Zip error: {e}")))?;
                 let mut src = fs::File::open(&enc_path)?;
                 std::io::copy(&mut src, &mut z)?;
@@ -287,7 +408,7 @@ pub fn export_zip(
             });
             let _ = fs::remove_file(&enc_path);
             r?;
-            progress((i + 1) as f32 / n as f32);
+            prog.set(b);
         }
         z.finish().map_err(|e| PrismError::Io(format!("Zip error: {e}")))?;
         Ok(())
@@ -314,6 +435,58 @@ mod tests {
             assert_eq!(a.channels.len(), 2);
             assert!((a.frames() as i64 - 44100).abs() < 3000, "{fmt:?} frames {}", a.frames());
             assert!(!part_path(&p).exists());
+        }
+    }
+
+    /// Long enough for several progress reports per format.
+    fn long_tone() -> Audio {
+        let c: Vec<f32> = (0..REPORT_EVERY * 5).map(|i| 0.5 * (i as f32 * 0.05).sin()).collect();
+        Audio { sample_rate: 44100, channels: vec![c.clone(), c] }
+    }
+
+    #[test]
+    fn reports_rising_progress_up_to_done() {
+        let t = tempfile::tempdir().unwrap();
+        let cancel = CancelToken::new();
+        for fmt in [ExportFormat::Wav, ExportFormat::Flac, ExportFormat::Mp3] {
+            let mut seen = Vec::new();
+            let mut report = |f: f32| seen.push(f);
+            let mut prog = Progress::new(&mut report, &cancel);
+            let p = t.path().join(format!("x.{}", fmt.ext()));
+            encode_with(
+                &long_tone(),
+                &ExportOptions { format: fmt, mp3_bitrate: 192, range: None },
+                &p,
+                &mut prog.sub(0.5, 1.0),
+            )
+            .unwrap();
+            assert!(seen.len() > 2, "{fmt:?}: {seen:?}");
+            assert!(seen.windows(2).all(|w| w[0] <= w[1]), "{fmt:?} not rising: {seen:?}");
+            assert!(seen[0] >= 0.5, "{fmt:?} ignored its sub-range: {seen:?}");
+            assert_eq!(*seen.last().unwrap(), 1.0, "{fmt:?}");
+        }
+    }
+
+    #[test]
+    fn cancelling_stops_and_leaves_no_file() {
+        let t = tempfile::tempdir().unwrap();
+        for fmt in [ExportFormat::Wav, ExportFormat::Flac, ExportFormat::Mp3] {
+            let cancel = CancelToken::new();
+            let c2 = cancel.clone();
+            let mut report = move |f: f32| {
+                if f > 0.3 {
+                    c2.cancel();
+                }
+            };
+            let p = t.path().join(format!("x.{}", fmt.ext()));
+            let r = encode_with(
+                &long_tone(),
+                &ExportOptions { format: fmt, mp3_bitrate: 192, range: None },
+                &p,
+                &mut Progress::new(&mut report, &cancel),
+            );
+            assert!(matches!(r, Err(PrismError::Cancelled)), "{fmt:?}: {r:?}");
+            assert!(!p.exists() && !part_path(&p).exists(), "{fmt:?} left a file");
         }
     }
 

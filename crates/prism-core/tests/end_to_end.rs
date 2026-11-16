@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use prism_core::audio::{Audio, TrackInfo, conform, decode_file};
-use prism_core::export::{ExportFormat, ExportOptions, MixGain, export_mix, export_stem, export_zip};
+use prism_core::export::{ExportFormat, ExportOptions, MixGain, Progress, export_mix, export_stem, export_zip};
 use prism_core::library::Library;
 use prism_core::manifest::Quality;
 use prism_core::models::ModelStore;
@@ -95,7 +95,7 @@ fn separate_store_export() {
     for fmt in [ExportFormat::Wav, ExportFormat::Flac, ExportFormat::Mp3] {
         let o = ExportOptions { format: fmt, mp3_bitrate: 320, range: None };
         let f = out.join(format!("vocals.{}", fmt.ext()));
-        export_stem(&lib, &p, "vocals", &o, &f).unwrap();
+        export_stem(&lib, &p, "vocals", &o, &f, &mut Progress::new(&mut |_| {}, &cancel)).unwrap();
         let (a, _) = decode_file(&f, &cancel).unwrap();
         assert!((a.duration_secs() - audio.duration_secs()).abs() < 0.2, "{fmt:?}");
     }
@@ -110,6 +110,7 @@ fn separate_store_export() {
         &karaoke,
         &ExportOptions { format: ExportFormat::Wav, mp3_bitrate: 320, range: None },
         &out.join("karaoke.wav"),
+        &mut Progress::new(&mut |_| {}, &cancel),
     )
     .unwrap();
     let zip_path = out.join("stems.zip");
@@ -119,8 +120,7 @@ fn separate_store_export() {
         &ExportOptions { format: ExportFormat::Flac, mp3_bitrate: 320, range: None },
         &zip_path,
         &t.path().join("tmp"),
-        &mut |_| {},
-        &cancel,
+        &mut Progress::new(&mut |_| {}, &cancel),
     )
     .unwrap();
     let z = zip::ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();

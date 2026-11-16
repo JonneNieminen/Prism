@@ -277,43 +277,72 @@ fn suggest_file_name(title: String, suffix: String, ext: String) -> String {
     export::default_file_name(&title, &suffix, &ext)
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExportProgress {
+    job_id: String,
+    fraction: f32,
+}
+
+/// Runs one export off the UI thread as a cancellable job (`cancel_job`), emitting
+/// `export-progress` for it, at most once per whole percent.
+async fn run_export(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    job_id: String,
+    work: impl FnOnce(&AppState, &mut export::Progress) -> prism_core::Result<()> + Send + 'static,
+) -> Res<()> {
+    let s = state.inner().clone();
+    let cancel = s.register(&job_id);
+    let jid = job_id.clone();
+    let res = blocking(move || {
+        let mut last = -1i32;
+        let mut report = |f: f32| {
+            let pct = (f * 100.0).floor() as i32;
+            if pct != last {
+                last = pct;
+                let _ = app.emit("export-progress", ExportProgress { job_id: jid.clone(), fraction: f });
+            }
+        };
+        work(&s, &mut export::Progress::new(&mut report, &cancel))
+    })
+    .await;
+    state.unregister(&job_id);
+    res
+}
+
 #[tauri::command]
 async fn export_stem(
+    app: AppHandle,
     state: State<'_, AppState>,
+    job_id: String,
     project_id: String,
     stem_id: String,
     options: ExportOptions,
     target: String,
 ) -> Res<()> {
-    let s = state.inner().clone();
-    blocking(move || {
+    run_export(app, state, job_id, move |s, prog| {
         let p = s.library.get(&project_id)?;
-        export::export_stem(&s.library, &p, &stem_id, &options, &PathBuf::from(target))
+        export::export_stem(&s.library, &p, &stem_id, &options, &PathBuf::from(target), prog)
     })
     .await
 }
 
 #[tauri::command]
 async fn export_mix(
+    app: AppHandle,
     state: State<'_, AppState>,
+    job_id: String,
     project_id: String,
     gains: Vec<MixGain>,
     options: ExportOptions,
     target: String,
 ) -> Res<()> {
-    let s = state.inner().clone();
-    blocking(move || {
+    run_export(app, state, job_id, move |s, prog| {
         let p = s.library.get(&project_id)?;
-        export::export_mix(&s.library, &p, &gains, &options, &PathBuf::from(target))
+        export::export_mix(&s.library, &p, &gains, &options, &PathBuf::from(target), prog)
     })
     .await
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ExportProgress {
-    job_id: String,
-    fraction: f32,
 }
 
 #[tauri::command]
@@ -325,27 +354,12 @@ async fn export_zip(
     options: ExportOptions,
     target: String,
 ) -> Res<()> {
-    let s = state.inner().clone();
-    let cancel = s.register(&job_id);
-    let jid = job_id.clone();
-    let res = blocking(move || {
+    run_export(app, state, job_id, move |s, prog| {
         let p = s.library.get(&project_id)?;
         let tmp = s.paths.cache.join("export-tmp");
-        export::export_zip(
-            &s.library,
-            &p,
-            &options,
-            &PathBuf::from(target),
-            &tmp,
-            &mut |f| {
-                let _ = app.emit("export-progress", ExportProgress { job_id: jid.clone(), fraction: f });
-            },
-            &cancel,
-        )
+        export::export_zip(&s.library, &p, &options, &PathBuf::from(target), &tmp, prog)
     })
-    .await;
-    state.unregister(&job_id);
-    res
+    .await
 }
 
 #[derive(Serialize)]

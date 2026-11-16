@@ -7,6 +7,7 @@ import { TooltipLayer } from "./components/Tooltip";
 import { Spinner } from "./components/ui";
 import { AnalyzeView } from "./features/analyze/AnalyzeView";
 import { useDownload } from "./features/download/downloadStore";
+import { useExports, type ExportWhat } from "./features/export/exportStore";
 import { listenForUpdates } from "./features/settings/updateStore";
 import { DownloadView } from "./features/download/DownloadView";
 import { HelpView } from "./features/help/HelpView";
@@ -128,6 +129,9 @@ function useKeyboard() {
   }, []);
 }
 
+/** `demo=exports` starts its exports once, even when StrictMode runs the setup twice. */
+let exportsDemoStarted = false;
+
 export function App() {
   const { t, lang } = useT();
   setLanguage(lang); // before the children render, so plain tr() calls follow the chosen language
@@ -147,7 +151,7 @@ export function App() {
     init()
       .then(async () => {
         // Browser preview only (used by scripts/screenshots.sh for the README):
-        // ?view=player&theme=light&lang=fi&demo=separating|download
+        // ?view=player&theme=light&lang=fi&demo=separating|download|exports
         if (isTauri) return;
         const q = new URLSearchParams(location.search);
         const app = useApp.getState();
@@ -165,6 +169,16 @@ export function App() {
           await app.loadSource("/Users/demo/Music/Neon Skyline.mp3");
           const s = useApp.getState().settings;
           if (s) await useApp.getState().separate(s.activeModelId, s.quality);
+        } else if (demo === "exports" && !exportsDemoStarted) {
+          exportsDemoStarted = true;
+          const b = await backend();
+          const p = app.projects[0];
+          const opts = { format: "wav" as const, mp3Bitrate: 320 };
+          const start = (what: ExportWhat, file: string, run: (be: typeof b, id: string) => Promise<void>) =>
+            useExports.getState().start({ title: p.title, what, path: `/Users/demo/Music/${file}`, run });
+          start({ kind: "mix" }, `${p.title} - full mix.wav`, (be, id) => be.exportMix(id, p.id, [], opts, "mix.wav"));
+          start({ kind: "stem", stemLabel: p.stems[0].label }, `${p.title} - vocals.wav`, (be, id) => be.exportStem(id, p.id, p.stems[0].id, opts, "fail.wav"));
+          start({ kind: "zip" }, `${p.title} - stems.zip`, (be, id) => be.exportZip(id, p.id, opts, "stems.zip"));
         } else if (demo === "download") {
           useDownload.getState().setUrl("https://soundcloud.com/artist/neon-skyline");
           await useDownload.getState().start("https://soundcloud.com/artist/neon-skyline", "soundCloud");

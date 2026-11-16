@@ -1,15 +1,14 @@
 import { Archive, AudioLines, FileAudio } from "lucide-react";
-import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { ExportFormat, ExportRange, Project } from "../../bindings";
 import { Modal } from "../../components/Modal";
-import { Button, ProgressBar, Segmented, StemChip, cx } from "../../components/ui";
+import { Button, Segmented, StemChip, cx } from "../../components/ui";
 import { effectiveGains, type StemMix } from "../../lib/audio/engine";
-import { backend, toAppError } from "../../lib/ipc";
+import { backend } from "../../lib/ipc";
 import { formatTime, stemLabel } from "../../lib/format";
-import { showInFileManager } from "../../lib/platform";
 import { useApp, type ExportTarget } from "../../store/app";
 import { usePlayer } from "../player/playerStore";
+import { useExports, type ExportWhat } from "./exportStore";
 import { mark } from "../../i18n";
 import { useT } from "../../i18n/useT";
 
@@ -28,16 +27,15 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
   const setTarget = useApp((s) => s.setExportTarget);
   const settings = useApp((s) => s.settings)!;
   const updateSettings = useApp((s) => s.updateSettings);
-  const toast = useApp((s) => s.toast);
+  const startExport = useExports((s) => s.start);
   const [kind, setKind] = useState<ExportTarget["kind"]>("mix");
   const [stemId, setStemId] = useState(project.stems[0]?.id);
   const [format, setFormat] = useState<ExportFormat>(settings.exportFormat);
   const [bitrate, setBitrate] = useState(settings.mp3Bitrate);
-  const [busy, setBusy] = useState<number | null>(null);
   const loop = usePlayer((s) => s.loop);
   const loopOn = usePlayer((s) => s.loopOn);
   const [onlyLoop, setOnlyLoop] = useState(false);
-  const onClose = () => busy === null && setTarget(null);
+  const onClose = () => setTarget(null);
 
   useEffect(() => {
     if (!target) return;
@@ -46,7 +44,6 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
     setFormat(settings.exportFormat);
     setBitrate(settings.mp3Bitrate);
     setOnlyLoop(loopOn && !!loop);
-    setBusy(null);
   }, [target]);
 
   const gains = effectiveGains(mix);
@@ -66,22 +63,19 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
     if (!path) return;
     const options = { format, mp3Bitrate: bitrate, ...(range ? { range } : {}) };
     void updateSettings({ exportFormat: format, mp3Bitrate: bitrate });
-    setBusy(0);
-    const jobId = `zip-${crypto.randomUUID()}`;
-    const off = await b.onExportProgress((e) => e.jobId === jobId && setBusy(e.fraction));
-    try {
-      if (kind === "mix") await b.exportMix(project.id, gains, options, path);
-      else if (kind === "stem") await b.exportStem(project.id, stemId!, options, path);
-      else await b.exportZip(jobId, project.id, options, path);
-      setBusy(null);
-      setTarget(null);
-      toast({ tone: "success", title: t("Export complete"), body: path.split(/[\\/]/).pop(), action: { label: t(showInFileManager), run: () => void b.reveal(path) } });
-    } catch (e) {
-      toast({ tone: "error", title: t("Export failed"), body: toAppError(e).message });
-      setBusy(null);
-    } finally {
-      off();
-    }
+    // From here it runs in the background: the Exports panel in the sidebar shows its progress.
+    const pid = project.id;
+    const stem = project.stems.find((s) => s.id === stemId);
+    const what: ExportWhat = kind === "stem" ? { kind, stemLabel: stem?.label ?? stemId ?? "" } : { kind };
+    const sid = stemId!;
+    startExport({
+      title: project.title,
+      what,
+      path,
+      run: (be, jobId) =>
+        kind === "mix" ? be.exportMix(jobId, pid, gains, options, path) : kind === "stem" ? be.exportStem(jobId, pid, sid, options, path) : be.exportZip(jobId, pid, options, path),
+    });
+    setTarget(null);
   };
 
   const options = [
@@ -99,7 +93,6 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
             role="radio"
             aria-checked={kind === o.kind}
             onClick={() => setKind(o.kind)}
-            disabled={busy !== null}
             data-tip={o.tip}
             data-shortcut={o.shortcut}
             className={cx("rounded-lg border p-3 text-left transition-colors", kind === o.kind ? "border-accent bg-accent-soft" : "border-border hover:bg-elevated")}
@@ -165,31 +158,14 @@ export function ExportDialog({ project, mix }: { project: Project; mix: StemMix[
       )}
       <p className="mt-3 text-[12px] text-muted">{t("{hint}. You'll choose where to save next.", { hint: t(FORMATS.find((f) => f.value === format)?.hint ?? "") })}</p>
 
-      {busy !== null ? (
-        <div className="mt-5">
-          {kind === "zip" ? (
-            <ProgressBar value={busy} label={t("Export progress")} />
-          ) : (
-            <div role="progressbar" aria-label={t("Exporting")} className="relative h-1.5 overflow-hidden rounded-full bg-pressed">
-              <motion.div
-                className="absolute inset-y-0 w-1/3 rounded-full bg-accent"
-                animate={{ left: ["-33%", "100%"] }}
-                transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </div>
-          )}
-          <p className="mt-2 text-center text-[12px] text-muted">{kind === "zip" ? t("Encoding stem {n} of {total}…", { n: Math.min(project.stems.length, Math.floor(busy * project.stems.length) + 1), total: project.stems.length }) : t("Encoding…")}</p>
-        </div>
-      ) : (
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onClose} tip={t("Close without exporting")} shortcut="closeDialog">
-            {t("Cancel")}
-          </Button>
-          <Button variant="primary" onClick={() => void run()} disabled={kind === "mix" && kept.length === 0} data-autofocus tip={t("Choose where to save")}>
-            {t("Export…")}
-          </Button>
-        </div>
-      )}
+      <div className="mt-5 flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose} tip={t("Close without exporting")} shortcut="closeDialog">
+          {t("Cancel")}
+        </Button>
+        <Button variant="primary" onClick={() => void run()} disabled={kind === "mix" && kept.length === 0} data-autofocus tip={t("Choose where to save")}>
+          {t("Export…")}
+        </Button>
+      </div>
     </Modal>
   );
 }

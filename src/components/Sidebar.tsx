@@ -4,6 +4,7 @@ import { useApp, type View } from "../store/app";
 import { StackedStems, type IconType } from "./icons";
 import { Wordmark } from "./Logo";
 import { MasterVolume } from "./MasterVolume";
+import { ExportsPanel } from "../features/export/ExportsPanel";
 import { Segmented, cx } from "./ui";
 import { thisComputer } from "../lib/platform";
 import { mark } from "../i18n";
@@ -76,6 +77,7 @@ export function Sidebar() {
       <ul className="flex flex-col gap-0.5">{MORE.map((i) => row(i))}</ul>
 
       <div className="mt-auto flex flex-col gap-3 px-1">
+        <ExportsPanel />
         <MasterVolume />
         <Segmented<Theme>
           label={t("Appearance")}
