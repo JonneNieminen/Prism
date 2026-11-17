@@ -117,7 +117,8 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
       TAG: ${{ needs.prepare.outputs.tag }}
       PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
-      GH_TOKEN: ${{ github.token }}
+      # A PAT: the built-in token cannot create a tag on a commit that changes workflow files.
+      GH_TOKEN: ${{ secrets.GHTOKENWORKFLOW }}
     steps:
       - uses: actions/checkout@v7 # for build/make-latest-json.mjs
       - uses: actions/download-artifact@v8
