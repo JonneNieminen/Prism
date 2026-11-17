@@ -108,11 +108,11 @@ jobs:
       # macOS: drag-to-install DMG with "READ ME FIRST.txt", plus a render of the icon as macOS
       # shows it (Icon Composer icon from Assets.car, so no grey plate on macOS 26+).
       - name: Make DMG
-        if: runner.os == 'macOS'
+        if: matrix.rid == 'macOS-arm64'
         run: build/macos/make-dmg.sh target/release/bundle/macos/Prism.app "$VERSION" ${{ matrix.rid }} installers
       # Updater files (only when the build was signed): Prism.app.tar.gz and its signature.
       - name: Collect updater files
-        if: runner.os == 'macOS'
+        if: matrix.rid == 'macOS-arm64'
         run: |
           mkdir -p installers
           for f in target/release/bundle/macos/*.app.tar.gz; do
@@ -121,11 +121,11 @@ jobs:
             cp "$f.sig" "installers/Prism-$VERSION-${{ matrix.rid }}.app.tar.gz.sig"
           done
       - name: Render icon preview
-        if: runner.os == 'macOS'
+        if: matrix.rid == 'macOS-arm64'
         run: swift build/macos/render-icon.swift "$PWD/target/release/bundle/macos/Prism.app" icon-preview-${{ matrix.rid }}.png
       # Only a preview for checking the icon, so a flaky artifact upload mustn't fail the build.
       - name: Upload icon preview
-        if: runner.os == 'macOS'
+        if: matrix.rid == 'macOS-arm64'
         continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
