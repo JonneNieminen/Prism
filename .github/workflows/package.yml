@@ -108,11 +108,11 @@ jobs:
       # macOS: drag-to-install DMG with "READ ME FIRST.txt", plus a render of the icon as macOS
       # shows it (Icon Composer icon from Assets.car, so no grey plate on macOS 26+).
       - name: Make DMG
-        if: matrix.rid == 'macOS-arm64'
+        if: runner.os == 'macOS'
         run: build/macos/make-dmg.sh target/release/bundle/macos/Prism.app "$VERSION" ${{ matrix.rid }} installers
       # Updater files (only when the build was signed): Prism.app.tar.gz and its signature.
       - name: Collect updater files
-        if: matrix.rid == 'macOS-arm64'
+        if: runner.os == 'macOS'
         run: |
           mkdir -p installers
           for f in target/release/bundle/macos/*.app.tar.gz; do
